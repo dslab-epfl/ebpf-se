@@ -88,7 +88,7 @@ void bpf_map_init_stub(struct bpf_map_def *map, char *name, char *key_type, char
     bpf_map_stubs[map->map_id] =
         array_allocate(name, val_type, map->value_size, map->max_entries);
     bpf_map_stub_types[map->map_id] = ArrayStub;
-  } else if (map->type == 1 | map->type == 5 | map->type == 9) {
+  } else if (map->type == 1 | map->type == 5 | map->type == 9 | map->type == 17) {
     // Hash/ per-cpu hash. Again, should be in terms of the enum
     bpf_map_stubs[map->map_id] =
         map_allocate(name, key_type, val_type, map->key_size, map->value_size, map->max_entries);
@@ -191,7 +191,7 @@ static __attribute__ ((noinline)) long bpf_map_update_elem(void *map, const void
   TRACE_VAR(map_ptr->type, "bpf_map_type");
   if (bpf_map_stub_types[map_ptr->map_id] == ArrayStub)
     return array_update_elem(bpf_map_stubs[map_ptr->map_id], key, value, flags);
-  else if (bpf_map_stub_types[map_ptr->map_id] == MapStub)
+  else if (bpf_map_stub_types[map_ptr->map_id] == MapStub)  // XSK_MAP should only update from userspace
     return map_update_elem(bpf_map_stubs[map_ptr->map_id], key, value, flags);
   else
     assert(0 && "Unsupported map type");
@@ -1525,8 +1525,8 @@ static __attribute__ ((noinline)) long bpf_redirect_map (void *map, __u32 key, _
   else
     assert(0 && "Unsupported map type");
   if(redirected_elem)
-      return 1;
-  return 0;
+      return XDP_REDIRECT;
+  return flags & 3;
 }
 
 #else

@@ -107,8 +107,6 @@ int xdp_prog(struct xdp_md *ctx)
 /** Symbex driver starts here **/
 
 #ifdef KLEE_VERIFICATION
-#include "klee/klee.h"
-// #include <stdlib.h>
 
 struct __attribute__((__packed__)) pkt {
   struct ethhdr ether;
@@ -118,8 +116,6 @@ struct __attribute__((__packed__)) pkt {
 
 int main(int argc, char **argv) {
   BPF_MAP_INIT(&ipfix_probe_map, "ipfix_probes", "", "");
-
-//   struct crab_pkt *pkt = malloc(sizeof(struct crab_pkt));
   
   struct pkt *pkt = malloc(sizeof(struct pkt));
   klee_make_symbolic(pkt, sizeof(struct pkt), "packet");
