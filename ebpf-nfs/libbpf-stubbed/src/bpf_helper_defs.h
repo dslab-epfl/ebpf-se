@@ -238,15 +238,28 @@ static long (*bpf_probe_read)(void *dst, __u32 size,
  */
 
 #ifdef USES_BPF_KTIME_GET_NS
-static __attribute__ ((noinline)) __u64 bpf_ktime_get_ns(void) {
+unsigned long long last_time = 0;
+
+static __attribute__ ((noinline)) void bpf_time_init_stub(void) {
   if(record_calls){
     klee_trace_ret();
     klee_add_bpf_call();
   }
-  __u64 time;
+  klee_make_symbolic(&last_time, sizeof(last_time), "current_time");
+}
+
+static __attribute__ ((noinline)) unsigned long long bpf_ktime_get_ns(void) {
+  if(record_calls){
+    klee_trace_ret();
+    klee_add_bpf_call();
+  }
+  unsigned long long time;
   klee_make_symbolic(&time, sizeof(time), "current_time");
+  klee_assume(last_time <= time);
+  last_time = time;
   return time;
 }
+#define BPF_TIME_INIT() bpf_time_init_stub()
 #else
 static __u64 (*bpf_ktime_get_ns)(void) = (void *)5;
 #endif

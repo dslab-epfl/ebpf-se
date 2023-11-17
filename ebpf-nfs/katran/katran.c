@@ -29,6 +29,7 @@
 #include "katran_pkts.h"
 
 int main(int argc, char** argv){
+  BPF_TIME_INIT();
   BPF_MAP_INIT(&vip_map, "vip_map", "pkt.vip", "vip_metadata");
   BPF_MAP_OF_MAPS_INIT(&lru_mapping, &fallback_cache, "flowtable", "pkt.flow", "backend");
   BPF_MAP_INIT(&fallback_cache, "flowtable", "pkt.flow", "backend");
