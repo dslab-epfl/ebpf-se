@@ -32,7 +32,7 @@ int main(int argc, char** argv){
   BPF_MAP_INIT(&flow_ctx_table, "flowtable", "pkt.flow", "output_port");
 
   /* Init from xdp_fw_user.c */
-  const uint num_ports = 2;
+  #define num_ports 2
   int key[num_ports] = {B_PORT,A_PORT};
 	int ifindex_out[num_ports] = {B_PORT,A_PORT};
 

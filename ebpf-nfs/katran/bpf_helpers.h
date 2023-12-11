@@ -108,13 +108,13 @@ void bpf_map_reset_stub(struct bpf_map_def* map) {
 /* helper functions called from eBPF programs written in C */
 #ifdef USES_BPF_MAP_LOOKUP_ELEM
 static __attribute__((noinline)) void *bpf_map_lookup_elem(void *map, const void *key) {
-  if(record_calls){
-    klee_trace_ret_just_ptr(sizeof(void*));
-    klee_add_bpf_call();
-  }
+  // if(record_calls){
+  //   klee_trace_ret_just_ptr(sizeof(void*));
+  //   klee_add_bpf_call();
+  // }
   struct bpf_map_def *map_ptr = ((struct bpf_map_def *)map);
-  TRACE_VAL((uint32_t)(map_ptr), "map", _u32)
-  TRACE_VAR(map_ptr->type, "bpf_map_type");
+  // TRACE_VAL((uint32_t)(map_ptr), "map", _u32)
+  // TRACE_VAR(map_ptr->type, "bpf_map_type");
   if (bpf_map_stub_types[map_ptr->map_id] == ArrayStub)
     return array_lookup_elem(bpf_map_stubs[map_ptr->map_id], key);
   else if (bpf_map_stub_types[map_ptr->map_id] == MapStub)
@@ -132,13 +132,13 @@ static void *(*bpf_map_lookup_elem)(void *map, void *key) =
 #ifdef USES_BPF_MAP_UPDATE_ELEM
 static __attribute__((noinline)) long bpf_map_update_elem(void *map, const void *key, const void *value,
                                 __u64 flags) {
-  if(record_calls){
-    klee_trace_ret();
-    klee_add_bpf_call();
-  }
+  // if(record_calls){
+  //   klee_trace_ret();
+  //   klee_add_bpf_call();
+  // }
   struct bpf_map_def *map_ptr = ((struct bpf_map_def *)map);
-  TRACE_VAL((uint32_t)(map_ptr), "map", _u32)
-  TRACE_VAR(map_ptr->type, "bpf_map_type");
+  // TRACE_VAL((uint32_t)(map_ptr), "map", _u32)
+  // TRACE_VAR(map_ptr->type, "bpf_map_type");
   if (bpf_map_stub_types[map_ptr->map_id] == ArrayStub)
     return array_update_elem(bpf_map_stubs[map_ptr->map_id], key, value, flags);
   else if (bpf_map_stub_types[map_ptr->map_id] == MapStub)
@@ -168,18 +168,18 @@ static int (*bpf_probe_read)(void *dst, int size, const void *unsafe_ptr) =
 unsigned long long last_time = 0;
 
 static __attribute__ ((noinline)) void bpf_time_init_stub(void) {
-  if(record_calls){
-    klee_trace_ret();
-    klee_add_bpf_call();
-  }
+  // if(record_calls){
+  //   klee_trace_ret();
+  //   klee_add_bpf_call();
+  // }
   klee_make_symbolic(&last_time, sizeof(last_time), "current_time");
 }
 
 static __attribute__ ((noinline)) unsigned long long bpf_ktime_get_ns(void) {
-  if(record_calls){
-    klee_trace_ret();
-    klee_add_bpf_call();
-  }
+  // if(record_calls){
+  //   klee_trace_ret();
+  //   klee_add_bpf_call();
+  // }
   unsigned long long time;
   klee_make_symbolic(&time, sizeof(time), "current_time");
   klee_assume(last_time <= time);
@@ -199,10 +199,10 @@ static void (*bpf_tail_call)(void *ctx, void *map, int index) =
 
 #ifdef USES_BPF_GET_SMP_PROC_ID
 static __attribute__ ((noinline)) unsigned long long bpf_get_smp_processor_id(void){
-  if(record_calls){
-    klee_trace_ret();
-    klee_add_bpf_call();
-  }
+  // if(record_calls){
+  //   klee_trace_ret();
+  //   klee_add_bpf_call();
+  // }
   return RANDOM_NUM;
 }
 #else
@@ -250,10 +250,10 @@ static unsigned long long (*bpf_get_prandom_u32)(void) =
 static __attribute__((noinline)) int bpf_xdp_adjust_head(struct xdp_md *xdp_md, int delta) {
   /* Simple stub for now that only moves data pointer without a check. We assume
    * programs don't use the metadata for now */
-  if(record_calls){
-    klee_trace_ret();
-    klee_add_bpf_call();
-  }
+  // if(record_calls){
+  //   klee_trace_ret();
+  //   klee_add_bpf_call();
+  // }
   xdp_md->data += delta;
   return 0;
 }
@@ -446,10 +446,10 @@ static int (*bpf_l4_csum_replace)(void *ctx, int off, int from, int to, int flag
 static __attribute__ ((noinline)) __s64 bpf_csum_diff(__be32 *from, __u32 from_size, __be32 *to,
                            __u32 to_size, __wsum seed) {
   __s64 csum;
-  if(record_calls){
-    klee_trace_ret();
-    klee_add_bpf_call();
-  }
+  // if(record_calls){
+  //   klee_trace_ret();
+  //   klee_add_bpf_call();
+  // }
   klee_make_symbolic(&csum, sizeof(__s64), "Updated Checksum");
   return csum;
 }

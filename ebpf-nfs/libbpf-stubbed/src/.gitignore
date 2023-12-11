@@ -4,10 +4,3 @@
 /libbpf.so*
 /staticobjs
 /sharedobjs
-<<<<<<< HEAD
-/obj
-/build
-=======
-/build
-/obj
->>>>>>> 570fd40a1e2048bb0f88354cda8d7b81f2ffd12c

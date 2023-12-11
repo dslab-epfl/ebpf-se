@@ -26,7 +26,7 @@ KERN_USER_H ?= $(wildcard common_kern_user.h)
 
 LDFLAGS ?= -L$(LIBBPF_DIR)
 
-BPF_CFLAGS ?= -I$(LIBBPF_DIR)/build/usr/include/ -I../headers/ -I $(KLEE_INCLUDE)
+BPF_CFLAGS ?= -I$(LIBBPF_DIR)/build/usr/include/ -I$(ROOT_DIR)/../headers/
 BPF_CFLAGS += -I /usr/include/$(UNAME_P)-linux-gnu
 
 ifeq ($(REPLAY), 1)
@@ -56,17 +56,19 @@ llvm-check: $(CLANG) $(LLC)
 
 xdp-target: $(XDP_C) Makefile $(KERN_USER_H) $(EXTRA_DEPS)
 	$(CLANG) \
-	    -target bpf \
-	    -D __BPF_TRACING__ -DKLEE_VERIFICATION\
-	    $(BPF_CFLAGS) \
-	    -I $(KLEE_INCLUDE) \
-	    -Wall \
-	    -Wno-unused-value \
-	    -Wno-pointer-sign \
-	    -Wno-compare-distinct-pointer-types \
-	    -Werror \
-	    -fno-builtin \
-	    -O2 -emit-llvm -c -g $(XDP_C)
+		-target bpf \
+		-DKLEE_VERIFICATION\
+		$(BPF_CFLAGS) \
+		-I $(KLEE_INCLUDE) \
+		-D__USE_VMLINUX__ \
+		-D__TARGET_ARCH_x86 \
+		-Wall \
+		-Wno-unused-value \
+		-Wno-pointer-sign \
+		-Wno-compare-distinct-pointer-types \
+		-Werror \
+		-fno-builtin \
+		-O2 -emit-llvm -c -g $(XDP_C)
 	# $(LLC) -march=bpf -filetype=obj -o $@ ${@:.o=.ll}
 
 libbpf:
@@ -74,9 +76,8 @@ libbpf:
 
 symbex:
 	/usr/bin/time -v \
-		klee -allocate-determ -allocate-determ-start-address=0x00040000000 -allocate-determ-size=1000 -libc=uclibc --external-calls=none --disable-verify \
-		-dump-call-traces -dump-call-trace-instructions -call-trace-instr-startfn=$(XDP_FUNCTION) -call-trace-instr-endfn=$(XDP_FUNCTION) -dump-constraint-tree \
-		-solver-backend=z3 -exit-on-error -max-memory=750000 -search=dfs -condone-undeclared-havocs $(XDP_TARGETS).bc
+		klee -kdalloc -kdalloc-heap-start-address=0x00040000000 -kdalloc-heap-size=1 -libc=uclibc --external-calls=all --disable-verify \
+		-solver-backend=z3 --exit-on-error -max-memory=750000 -search=dfs $(XDP_TARGETS).bc
 
 helper-contracts:
 	cd $(PIX_DIR)/dpdk-nfs/perf-contracts && make clean && make LLVM=TRUE
