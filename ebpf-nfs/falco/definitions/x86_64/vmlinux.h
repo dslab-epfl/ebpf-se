@@ -20014,7 +20014,7 @@ struct physdev_apic {
 	uint32_t value;
 };
 
-typedef long unsigned int uintptr_t;
+// typedef long unsigned int uintptr_t;
 
 struct xen_pmu_amd_ctxt {
 	uint32_t counters;
@@ -56390,7 +56390,7 @@ enum hugetlb_param {
 	Opt_uid___3 = 6,
 };
 
-typedef u16 wchar_t;
+// typedef u16 wchar_t;
 
 struct nls_table {
 	const char *charset;

@@ -10,13 +10,21 @@
 
 #include "../../helpers/base/common.h"
 
+// Set by harness
+int get_task_btf_exists;
+
 /* This inline function tries to retrieve the task struct pointer with BTF information enabled.
  * Where not possible it retrieves the normal pointer without BTF info
  * Kernel version required: 5.11.
  */
 static __always_inline struct task_struct *get_current_task()
 {
-	if(bpf_core_enum_value_exists(enum bpf_func_id, BPF_FUNC_get_current_task_btf)
+	// TODO: give non-btf get_current_task stub same behavior, potentially
+	// check that its pointer isn't used incorrectly.
+	// TODO: suppport bpf_core_enum_value_exists
+
+	// if(bpf_core_enum_value_exists(enum bpf_func_id, BPF_FUNC_get_current_task_btf)
+	if(get_task_btf_exists
 		&& (bpf_core_enum_value(enum bpf_func_id, BPF_FUNC_get_current_task_btf) == BPF_FUNC_get_current_task_btf))
 	{
 		return (struct task_struct *)bpf_get_current_task_btf();
@@ -66,9 +74,11 @@ static __always_inline struct task_struct *get_current_task()
  * 		}
  * 		...
  */
+// I want to make sure both reads work, so symbolically deciding which.
+// Currently references to bpf_core_enum_value_exists removed.
 #define READ_TASK_FIELD_INTO(dst, src, a, ...)                                                  \
 	({                                                                                      \
-		if(bpf_core_enum_value_exists(enum bpf_func_id, BPF_FUNC_get_current_task_btf) \
+		if(get_task_btf_exists \
 			&& (bpf_core_enum_value(enum bpf_func_id, BPF_FUNC_get_current_task_btf) == BPF_FUNC_get_current_task_btf)) \
 		{                                                                               \
 			*dst = ___arrow((src), a, ##__VA_ARGS__);                               \

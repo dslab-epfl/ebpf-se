@@ -8,7 +8,7 @@ CLANG ?= clang
 CC := gcc
 UNAME_P := $(shell uname -p)
 
-XDP_C = ${XDP_TARGETS:=.c}
+XDP_C ?= ${XDP_TARGETS:=.c}
 XDP_OBJ = ${XDP_C:.c=.o}
 
 OBJECT_LIBBPF = $(LIBBPF_DIR)/libbpf.a
@@ -62,8 +62,10 @@ xdp-target: $(XDP_C) Makefile $(KERN_USER_H) $(EXTRA_DEPS)
 		-I $(KLEE_INCLUDE) \
 		-D__USE_VMLINUX__ \
 		-D__TARGET_ARCH_x86 \
+		-DBPF_NO_PRESERVE_ACCESS_INDEX \
 		-Wall \
 		-Wno-unused-value \
+		-Wno-unused-variable \
 		-Wno-pointer-sign \
 		-Wno-compare-distinct-pointer-types \
 		-Werror \

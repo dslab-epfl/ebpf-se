@@ -2,6 +2,8 @@
 #ifndef __BPF_CORE_READ_H__
 #define __BPF_CORE_READ_H__
 
+#include "klee/klee.h"
+
 /*
  * enum bpf_field_info_kind is passed as a second argument into
  * __builtin_preserve_field_info() built-in to get a specific aspect of
@@ -37,6 +39,11 @@ enum bpf_enum_value_kind {
 	BPF_ENUMVAL_EXISTS = 0,		/* enum value existence in kernel */
 	BPF_ENUMVAL_VALUE = 1,		/* enum value value relocation */
 };
+
+int abort() {
+	klee_abort();
+	return 0;
+}
 
 #define __CORE_RELO(src, field, info)					      \
 	__builtin_preserve_field_info((src)->field, BPF_FIELD_##info)
@@ -129,7 +136,7 @@ enum bpf_enum_value_kind {
  *     bpf_core_field_exists(struct my_type, my_field).
  */
 #define bpf_core_field_exists(field...)					    \
-	__builtin_preserve_field_info(___bpf_field_ref(field), BPF_FIELD_EXISTS)
+	abort()
 
 /*
  * Convenience macro to get the byte size of a field. Works for integers,
@@ -142,7 +149,7 @@ enum bpf_enum_value_kind {
  *     bpf_core_field_size(struct my_type, my_field).
  */
 #define bpf_core_field_size(field...)					    \
-	__builtin_preserve_field_info(___bpf_field_ref(field), BPF_FIELD_BYTE_SIZE)
+	abort()
 
 /*
  * Convenience macro to get field's byte offset.
@@ -154,7 +161,7 @@ enum bpf_enum_value_kind {
  *     bpf_core_field_offset(struct my_type, my_field).
  */
 #define bpf_core_field_offset(field...)					    \
-	__builtin_preserve_field_info(___bpf_field_ref(field), BPF_FIELD_BYTE_OFFSET)
+	abort()
 
 /*
  * Convenience macro to get BTF type ID of a specified type, using a local BTF
@@ -162,7 +169,7 @@ enum bpf_enum_value_kind {
  * BTF. Always succeeds.
  */
 #define bpf_core_type_id_local(type)					    \
-	__builtin_btf_type_id(*(typeof(type) *)0, BPF_TYPE_ID_LOCAL)
+	abort()
 
 /*
  * Convenience macro to get BTF type ID of a target kernel's type that matches
@@ -172,7 +179,7 @@ enum bpf_enum_value_kind {
  *    - 0, if no matching type was found in a target kernel BTF.
  */
 #define bpf_core_type_id_kernel(type)					    \
-	__builtin_btf_type_id(*(typeof(type) *)0, BPF_TYPE_ID_TARGET)
+	abort()
 
 /*
  * Convenience macro to check that provided named type
@@ -182,7 +189,7 @@ enum bpf_enum_value_kind {
  *    0, if no matching type is found.
  */
 #define bpf_core_type_exists(type)					    \
-	__builtin_preserve_type_info(*(typeof(type) *)0, BPF_TYPE_EXISTS)
+	abort()
 
 /*
  * Convenience macro to check that provided named type
@@ -192,7 +199,7 @@ enum bpf_enum_value_kind {
  *    0, if the type does not match any in the target kernel
  */
 #define bpf_core_type_matches(type)					    \
-	__builtin_preserve_type_info(*(typeof(type) *)0, BPF_TYPE_MATCHES)
+	abort()
 
 /*
  * Convenience macro to get the byte size of a provided named type
@@ -202,7 +209,7 @@ enum bpf_enum_value_kind {
  *    0, if no matching type is found.
  */
 #define bpf_core_type_size(type)					    \
-	__builtin_preserve_type_info(*(typeof(type) *)0, BPF_TYPE_SIZE)
+	abort()
 
 /*
  * Convenience macro to check that provided enumerator value is defined in
@@ -213,7 +220,7 @@ enum bpf_enum_value_kind {
  *    0, if no matching enum and/or enum value within that enum is found.
  */
 #define bpf_core_enum_value_exists(enum_type, enum_value)		    \
-	__builtin_preserve_enum_value(*(typeof(enum_type) *)enum_value, BPF_ENUMVAL_EXISTS)
+	abort()
 
 /*
  * Convenience macro to get the integer value of an enumerator value in
@@ -223,8 +230,12 @@ enum bpf_enum_value_kind {
  *    present in target kernel's BTF;
  *    0, if no matching enum and/or enum value within that enum is found.
  */
+/*
+ * Not sure how to check if enum/enum value exists so always returns it's 
+ * value (0 case would not compile).
+ */
 #define bpf_core_enum_value(enum_type, enum_value)			    \
-	__builtin_preserve_enum_value(*(typeof(enum_type) *)enum_value, BPF_ENUMVAL_VALUE)
+	enum_value
 
 /*
  * bpf_core_read() abstracts away bpf_probe_read_kernel() call and captures
@@ -243,22 +254,22 @@ enum bpf_enum_value_kind {
  * (local) BTF, used to record relocation.
  */
 #define bpf_core_read(dst, sz, src)					    \
-	bpf_probe_read_kernel(dst, sz, (const void *)__builtin_preserve_access_index(src))
+	bpf_probe_read_kernel(dst, sz, (const void *)src)
 
 /* NOTE: see comments for BPF_CORE_READ_USER() about the proper types use. */
 #define bpf_core_read_user(dst, sz, src)				    \
-	bpf_probe_read_user(dst, sz, (const void *)__builtin_preserve_access_index(src))
+	bpf_probe_read_user(dst, sz, (const void *)src)
 /*
  * bpf_core_read_str() is a thin wrapper around bpf_probe_read_str()
  * additionally emitting BPF CO-RE field relocation for specified source
  * argument.
  */
 #define bpf_core_read_str(dst, sz, src)					    \
-	bpf_probe_read_kernel_str(dst, sz, (const void *)__builtin_preserve_access_index(src))
+	bpf_probe_read_kernel_str(dst, sz, (const void *)src)
 
 /* NOTE: see comments for BPF_CORE_READ_USER() about the proper types use. */
 #define bpf_core_read_user_str(dst, sz, src)				    \
-	bpf_probe_read_user_str(dst, sz, (const void *)__builtin_preserve_access_index(src))
+	bpf_probe_read_user_str(dst, sz, (const void *)src)
 
 #define ___concat(a, b) a ## b
 #define ___apply(fn, n) ___concat(fn, n)

@@ -5,5 +5,5 @@ include ../Makefile
 # XDP_TARGETS := ./programs/attached/events/sched_switch.bpf
 # XDP_FUNCTION := ____sched_switch
 
-XDP_TARGETS := ./programs/attached/dispatchers/syscall_exit.bpf
-XDP_FUNCTION := ____sys_exit
+XDP_TARGETS := syscall_exit.bpf
+XDP_C := ./programs/attached/dispatchers/syscall_exit.bpf.c

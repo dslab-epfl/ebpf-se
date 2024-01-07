@@ -498,7 +498,18 @@ static long (*bpf_l4_csum_replace)(struct __sk_buff *skb, __u32 offset, __u64 fr
  * Returns
  * 	0 on success, or a negative error in case of failure.
  */
+#ifdef USES_BPF_TAIL_CALL
+// On success the program ends so just model failure.
+static __attribute__ ((noinline)) long  bpf_tail_call(void *ctx, void *prog_array_map, __u32 index) {
+  // TODO: Is there a certain set of meaningful error codes that we should be returning?
+  long ret = klee_int("tail call return");
+  klee_assume(ret < 0);
+  return ret;
+}
+#else
 static long (*bpf_tail_call)(void *ctx, void *prog_array_map, __u32 index) = (void *) 12;
+#endif
+
 
 /*
  * bpf_clone_redirect
@@ -1123,7 +1134,24 @@ static __u32 (*bpf_get_hash_recalc)(struct __sk_buff *skb) = (void *) 34;
  * Returns
  * 	A pointer to the current task struct.
  */
+#ifdef USES_BPF_GET_CURRENT_TASK
+// We make the harness define the task struct, they know best what they need to read
+// and how to make it symbolic. I don't know that a general symbolic task is feasible.
+
+// Right now this is treated the same as the btf task struct, although it should not
+// be accessed directly in the same way.
+struct task_struct *task;
+
+static __attribute__ ((noinline)) void stub_init_current_task(struct task_struct* t) {
+  task = t;
+}
+
+static __attribute__ ((noinline)) struct task_struct *bpf_get_current_task() {
+  return task;
+}
+#else
 static __u64 (*bpf_get_current_task)(void) = (void *) 35;
+#endif
 
 /*
  * bpf_probe_write_user
@@ -3028,7 +3056,19 @@ static long (*bpf_probe_read_user)(void *dst, __u32 size, const void *unsafe_ptr
  * Returns
  * 	0 on success, or a negative error in case of failure.
  */
+#ifdef USES_BPF_PROBE_READ_KERNEL
+static __attribute__ ((noinline)) long bpf_probe_read_kernel(void *dst, __u32 size, const void *unsafe_ptr) {
+  int i;
+	char* d = dst;
+	const char* s = unsafe_ptr;
+	for (i = 0; i < size; i++) {
+		d[i] = s[i];
+	}
+  return 0;
+}
+#else
 static long (*bpf_probe_read_kernel)(void *dst, __u32 size, const void *unsafe_ptr) = (void *) 113;
+#endif
 
 /*
  * bpf_probe_read_user_str
@@ -3280,7 +3320,29 @@ static long (*bpf_sk_assign)(void *ctx, void *sk, __u64 flags) = (void *) 124;
  * Returns
  * 	Current *ktime*.
  */
+#ifdef USES_BPF_KTIME_GET_BOOT_NS
+unsigned long long last_boot_time = 0;
+
+static __attribute__ ((noinline)) void bpf_boot_time_init_stub(void) {
+  klee_make_symbolic(&last_boot_time, sizeof(last_boot_time), "current_time");
+}
+
+static __attribute__ ((noinline)) unsigned long long bpf_ktime_get_boot_ns(void) {
+  unsigned long long time;
+  klee_make_symbolic(&time, sizeof(time), "current_time");
+#ifdef USES_BPF_KTIME_GET_NS
+  // bpf_ktime_get_boot_ns should always be >= to bpf_ktime_get_ns
+  // since boot includes suspended time
+  klee_assume(last_time <= time);
+#endif
+  klee_assume(last_boot_time <= time);
+  last_boot_time = time;
+  return time;
+}
+#define BPF_BOOT_TIME_INIT() bpf_boot_time_init_stub()
+#else
 static __u64 (*bpf_ktime_get_boot_ns)(void) = (void *) 125;
+#endif
 
 /*
  * bpf_seq_printf
@@ -3983,7 +4045,15 @@ static long (*bpf_task_storage_delete)(void *map, struct task_struct *task) = (v
  * Returns
  * 	Pointer to the current task.
  */
+#ifdef USES_BPF_GET_CURRENT_TASK
+// We make the harness define the task struct, they know best what they need to read
+// and how to make it symbolic. I don't know that a general symbolic task is feasible.
+static __attribute__ ((noinline)) struct task_struct *bpf_get_current_task_btf() {
+  return task;
+}
+#else
 static struct task_struct *(*bpf_get_current_task_btf)(void) = (void *) 158;
+#endif
 
 /*
  * bpf_bprm_opts_set
