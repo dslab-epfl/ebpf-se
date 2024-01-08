@@ -121,6 +121,8 @@ int BPF_PROG(sys_exit,
 int main(int argc, char **argv) {
 	// Make global maps/variables symbolic. This fits our model of disregarding concurrent accesses
 	// by userspace/other bpf programs, revisit if we change that.
+	klee_make_symbolic(&g_ia32_to_64_table,
+	 	sizeof(g_ia32_to_64_table), "ia32_to_64_table");
 	klee_make_symbolic(&g_64bit_interesting_syscalls_table,
 	 	sizeof(g_64bit_interesting_syscalls_table), "interesting_syscalls_table");
 	klee_make_symbolic(&g_64bit_sampling_syscall_table,
