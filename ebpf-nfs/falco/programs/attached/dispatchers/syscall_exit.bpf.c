@@ -29,7 +29,6 @@
 #include "../../../helpers/interfaces/syscalls_dispatcher.h"
 #include "../../../helpers/interfaces/attached_programs.h"
 
-#include <bpf/bpf_helpers.h>
 
 #define X86_64_NR_EXECVE        59
 #define X86_64_NR_EXECVEAT      322

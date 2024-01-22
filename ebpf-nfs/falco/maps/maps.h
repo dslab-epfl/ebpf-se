@@ -172,12 +172,21 @@ struct
  * map where we store the number of events correctly pushed
  * and the number of events dropped.
  */
-struct
-{
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__type(key, uint32_t);
-	__type(value, struct counter_map);
-} counter_maps __weak SEC(".maps");
+// struct
+// {
+// 	__uint(type, BPF_MAP_TYPE_ARRAY);
+// 	__type(key, uint32_t);
+// 	__type(value, struct counter_map);
+// } counter_maps __weak SEC(".maps");
+
+struct bpf_map_def SEC(".maps") counter_maps = {
+  .type = BPF_MAP_TYPE_ARRAY,
+  .key_size = sizeof(uint32_t),
+  .value_size = sizeof(struct counter_map),
+  .max_entries = 8, // chose arbitrarily, maybe match up with ringbuf_maps
+  .map_flags = 0,
+  .map_id = -1,
+};
 
 /*=============================== BPF_MAP_TYPE_ARRAY ===============================*/
 
@@ -186,9 +195,18 @@ struct
 /**
  * @brief We use this map to let the verifier understand the content of our array of maps (`ringbuf_maps`)
  */
-struct ringbuf_map
-{
-	__uint(type, BPF_MAP_TYPE_RINGBUF);
+// struct ringbuf_map
+// {
+// 	__uint(type, BPF_MAP_TYPE_RINGBUF);
+// };
+
+struct bpf_map_def SEC(".maps") ringbuf_map = {
+  .type = BPF_MAP_TYPE_RINGBUF, // stub doesn't read any other fields for ringbuf
+  .key_size = 0,
+  .value_size = 0,
+  .max_entries = 0,
+  .map_flags = 0,
+  .map_id = -1,
 };
 
 /**
@@ -196,12 +214,21 @@ struct ringbuf_map
  * according to the user-provided configuration. It could also contain only
  * one buffer shared between all CPUs. 
  */
-struct
-{
-	__uint(type, BPF_MAP_TYPE_ARRAY_OF_MAPS);
-	__type(key, uint32_t);
-	__type(value, uint32_t);
-	__array(values, struct ringbuf_map);
-} ringbuf_maps __weak SEC(".maps");
+// struct
+// {
+// 	__uint(type, BPF_MAP_TYPE_ARRAY_OF_MAPS);
+// 	__type(key, uint32_t);
+// 	__type(value, uint32_t);
+// 	__array(values, struct ringbuf_map);
+// } ringbuf_maps __weak SEC(".maps");
+
+struct bpf_map_def SEC(".maps") ringbuf_maps = {
+  .type = BPF_MAP_TYPE_ARRAY_OF_MAPS,
+  .key_size = sizeof(uint32_t),
+  .value_size = sizeof(uint32_t),
+  .max_entries = 8,	// chose arbitrarily
+  .map_flags = 0,
+  .map_id = -1,
+};
 
 /*=============================== RINGBUF MAP ===============================*/

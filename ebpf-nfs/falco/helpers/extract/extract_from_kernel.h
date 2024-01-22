@@ -621,7 +621,7 @@ static __always_inline unsigned long extract__vm_rss(struct mm_struct *mm)
 	/* In recent kernel versions (https://github.com/torvalds/linux/commit/f1a7941243c102a44e8847e3b94ff4ff3ec56f25)
 	 * `struct mm_rss_stat` doesn't exist anymore.
 	 */
-	if(bpf_core_type_exists(struct mm_rss_stat))
+	if(0) // already know core_read works, avoid making an extra field symbolic in setup
 	{
 		BPF_CORE_READ_INTO(&file_pages, mm, rss_stat.count[MM_FILEPAGES].counter);
 		BPF_CORE_READ_INTO(&anon_pages, mm, rss_stat.count[MM_ANONPAGES].counter);
@@ -646,7 +646,7 @@ static __always_inline unsigned long extract__vm_rss(struct mm_struct *mm)
 static __always_inline unsigned long extract__vm_swap(struct mm_struct *mm)
 {
 	int64_t swap_entries = 0;
-	if(bpf_core_type_exists(struct mm_rss_stat))
+	if(0) // same as above
 	{
 		BPF_CORE_READ_INTO(&swap_entries, mm, rss_stat.count[MM_SWAPENTS].counter);
 	}

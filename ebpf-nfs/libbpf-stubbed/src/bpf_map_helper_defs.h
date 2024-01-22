@@ -3,14 +3,14 @@
 
 #include "klee/klee.h"
 #include <assert.h>
-#include <stdlib.h>
+#include <malloc.h>
 #include <string.h>
 
 #define NUM_ELEMS 4
 /* This is a totally random 32 bit number used as a hack to check if the key used to lookup maps 
     is the same as the one returned by bpf_get_smp_processor_id. 
     TODO: Check symbolic expression correctly. I'm worried it will need LLVM includes, which will dirty the structure */
-#define RANDOM_NUM 1431655765 
+#define RANDOM_NUM 3 
 
 /* Array Stub */
 
@@ -196,10 +196,8 @@ void *map_of_map_allocate(struct bpf_map_def* inner_map, unsigned int id) {
 }
 
 void *map_of_map_lookup_elem(struct MapofMapStub *map, const void *key) {
-  uint index = *(uint *)key;
-  klee_assert(index == RANDOM_NUM);
-  klee_assert(map->internal_map.type == 1 || map->internal_map.type == 5 || map->internal_map.type == 9);
-  map->internal_map.type = 5; // Internal map(s) is now per-cpu hash.
+  if (!klee_int("map in map found")) return NULL;
+  klee_assert(map->internal_map.type == 1 || map->internal_map.type == 2 || map->internal_map.type == 5 || map->internal_map.type == 9 || map->internal_map.type == 27);
   return &(map->internal_map);
 }
 

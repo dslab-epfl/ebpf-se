@@ -43,7 +43,7 @@ static __always_inline struct task_struct *get_current_task()
 #define READ_TASK_FIELD(src, a, ...)                                                            \
 	({                                                                                      \
 		___type((src), a, ##__VA_ARGS__) __r;                                           \
-		if(bpf_core_enum_value_exists(enum bpf_func_id, BPF_FUNC_get_current_task_btf) \
+		if(get_task_btf_exists \
 			&& (bpf_core_enum_value(enum bpf_func_id, BPF_FUNC_get_current_task_btf) == BPF_FUNC_get_current_task_btf)) \
 		{                                                                               \
 			__r = ___arrow((src), a, ##__VA_ARGS__);                                \

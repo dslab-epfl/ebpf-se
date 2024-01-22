@@ -65,7 +65,7 @@ struct bpf_map_def {
 #endif 
 
 #include <assert.h>
-#include <stdlib.h>
+#include <malloc.h>
 #include <string.h>
 
 #define MAX_BPF_MAPS 10 // Just a random size for now
@@ -107,7 +107,7 @@ void bpf_map_init_stub(struct bpf_map_def *map, char *name, char *key_type, char
         map_allocate(name, key_type, val_type, map->key_size, map->value_size, map->max_entries);
     bpf_map_stub_types[map->map_id] = MapStub;
   }
-  else
+  else if (map->type != 27) // no initialization required for ringbuffer
     assert(0 && "Unsupported map type");
   return;
 }
@@ -117,10 +117,17 @@ void bpf_map_of_maps_init_stub(struct bpf_map_def* outer, struct bpf_map_def* in
   assert(outer->type == 12 || outer->type == 13);
   bpf_map_stubs[outer->map_id] = map_of_map_allocate(inner,bpf_map_ctr);
   bpf_map_stub_types[outer->map_id] = MapofMapStub;
-  assert(inner->type == 1 || inner->type == 5 || inner->type == 9);
-  bpf_map_stubs[bpf_map_ctr] = map_allocate(name, key_type, val_type, inner->key_size, inner->value_size, inner->max_entries);
-  bpf_map_stub_types[bpf_map_ctr] = MapStub;
-  bpf_map_ctr++;
+  assert(inner->type == 1 || inner->type == 2 || inner->type == 5 || inner->type == 9 || inner->type == 27);
+  if (inner->type == 2) {
+    bpf_map_stubs[bpf_map_ctr] = array_allocate(name, val_type, inner->value_size, inner->max_entries);
+    bpf_map_stub_types[bpf_map_ctr] = ArrayStub;
+    array_reset(bpf_map_stubs[bpf_map_ctr]);
+    bpf_map_ctr++;
+  } else if (inner->type != 27) {
+    bpf_map_stubs[bpf_map_ctr] = map_allocate(name, key_type, val_type, inner->key_size, inner->value_size, inner->max_entries);
+    bpf_map_stub_types[bpf_map_ctr] = MapStub;
+    bpf_map_ctr++;
+  }
 }
 
 void bpf_map_reset_stub(struct bpf_map_def* map) {
@@ -368,12 +375,13 @@ static __u32 (*bpf_get_prandom_u32)(void) = (void *) 7;
  */
 
 #ifdef USES_BPF_GET_SMP_PROC_ID
+__u32 proc_id;
+static __attribute__ ((noinline)) void stub_init_proc_id(__u32 p) {
+  proc_id = p;
+}
+
 static __attribute__ ((noinline)) __u32 bpf_get_smp_processor_id(void){
-  if(record_calls){
-    klee_trace_ret();
-    klee_add_bpf_call();
-  }
-  return RANDOM_NUM;
+  return proc_id;
 }
 #else
 static __u32 (*bpf_get_smp_processor_id)(void) = (void *) 8;
@@ -550,8 +558,18 @@ static long (*bpf_clone_redirect)(struct __sk_buff *skb, __u32 ifindex, __u64 fl
  * 	*current_task*\ **->tgid << 32 \|**
  * 	*current_task*\ **->pid**.
  */
-static __u64 (*bpf_get_current_pid_tgid)(void) = (void *) 14;
+#ifdef USES_BPF_GET_CURRENT_PID_TGID
+__u64 pid_tgid;
+static __attribute__ ((noinline)) void stub_init_pid_tgid(__u64 pt) {
+  pid_tgid = pt;
+}
 
+static __attribute__ ((noinline)) __u64 bpf_get_current_pid_tgid(void) {
+  return pid_tgid;
+}
+#else
+static __u64 (*bpf_get_current_pid_tgid)(void) = (void *) 14;
+#endif
 /*
  * bpf_get_current_uid_gid
  *
@@ -3450,7 +3468,16 @@ static __u64 (*bpf_sk_ancestor_cgroup_id)(void *sk, int ancestor_level) = (void 
  * Returns
  * 	0 on success, or a negative error in case of failure.
  */
+#ifdef USES_BPF_RINGBUF_OUTPUT
+static long bpf_ringbuf_output(void *ringbuf, void *data, __u64 size, __u64 flags) {
+  long result;
+  klee_make_symbolic(&result, sizeof(long), "ringbuf_output_result");
+  klee_assume(result <= 0);
+  return result;
+}
+#else
 static long (*bpf_ringbuf_output)(void *ringbuf, void *data, __u64 size, __u64 flags) = (void *) 130;
+#endif
 
 /*
  * bpf_ringbuf_reserve
@@ -3462,7 +3489,17 @@ static long (*bpf_ringbuf_output)(void *ringbuf, void *data, __u64 size, __u64 f
  * 	Valid pointer with *size* bytes of memory available; NULL,
  * 	otherwise.
  */
+#ifdef USES_BPF_RINGBUF_RESERVE
+static void* bpf_ringbuf_reserve(void *ringbuf, __u64 size, __u64 flags) {
+  assert(flags == 0);
+  if (!klee_int("ringbuf_reserves_success")) {
+    return NULL;
+  }
+  return malloc(size);
+}
+#else
 static void *(*bpf_ringbuf_reserve)(void *ringbuf, __u64 size, __u64 flags) = (void *) 131;
+#endif
 
 /*
  * bpf_ringbuf_submit
@@ -3480,7 +3517,11 @@ static void *(*bpf_ringbuf_reserve)(void *ringbuf, __u64 size, __u64 flags) = (v
  * Returns
  * 	Nothing. Always succeeds.
  */
+#ifdef USES_BPF_RINGBUF_SUBMIT
+static void bpf_ringbuf_submit(void *ringbuf, __u64 flags) {}
+#else
 static void (*bpf_ringbuf_submit)(void *data, __u64 flags) = (void *) 132;
+#endif
 
 /*
  * bpf_ringbuf_discard
@@ -3498,7 +3539,11 @@ static void (*bpf_ringbuf_submit)(void *data, __u64 flags) = (void *) 132;
  * Returns
  * 	Nothing. Always succeeds.
  */
+#ifdef USES_BPF_RINGBUF_DISCARD
+static void bpf_ringbuf_discard(void *ringbuf, __u64 flags) {}
+#else
 static void (*bpf_ringbuf_discard)(void *data, __u64 flags) = (void *) 133;
+#endif
 
 /*
  * bpf_ringbuf_query
@@ -3519,7 +3564,18 @@ static void (*bpf_ringbuf_discard)(void *data, __u64 flags) = (void *) 133;
  * Returns
  * 	Requested value, or 0, if *flags* are not recognized.
  */
+#ifdef USES_BPF_RINGBUF_QUERY
+static __u64 bpf_ringbuf_query(void *ringbuf, __u64 flags) {
+  if (flags == BPF_RB_AVAIL_DATA || flags == BPF_RB_RING_SIZE || flags == BPF_RB_CONS_POS || flags == BPF_RB_PROD_POS) {
+    __u64 result;
+    klee_make_symbolic(&result, sizeof(__u64), "ringbuf_query_result");
+    return result;
+  }
+  return 0;
+}
+#else
 static __u64 (*bpf_ringbuf_query)(void *ringbuf, __u64 flags) = (void *) 134;
+#endif
 
 /*
  * bpf_csum_level

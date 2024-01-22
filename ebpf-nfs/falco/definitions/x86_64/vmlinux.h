@@ -52,7 +52,7 @@ typedef unsigned int __kernel_gid32_t;
 
 typedef __kernel_ulong_t __kernel_size_t;
 
-typedef __kernel_long_t __kernel_ssize_t;
+typedef int __kernel_ssize_t;
 
 typedef long long int __kernel_loff_t;
 
