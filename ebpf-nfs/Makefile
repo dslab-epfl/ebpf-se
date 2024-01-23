@@ -70,7 +70,7 @@ xdp-target: $(XDP_C) Makefile $(KERN_USER_H) $(EXTRA_DEPS)
 		-Wno-compare-distinct-pointer-types \
 		-Werror \
 		-fno-builtin \
-		-O2 -emit-llvm -c -g $(XDP_C)
+		-O0 -emit-llvm -c -g $(XDP_C)
 	# $(LLC) -march=bpf -filetype=obj -o $@ ${@:.o=.ll}
 
 libbpf:

@@ -19,8 +19,8 @@ struct ArrayStub {
   char *key_type;
   char *data_type;
   char *data;
-  uint value_size;
-  uint capacity;
+  unsigned int value_size;
+  unsigned int capacity;
 };
 
 void *array_allocate(char* name, char* data_type, unsigned int value_size, unsigned int max_entries) {
@@ -38,7 +38,7 @@ void *array_allocate(char* name, char* data_type, unsigned int value_size, unsig
 }
 
 void *array_lookup_elem(struct ArrayStub *array, const void *key) {
-  uint index = *(uint *)key;
+  unsigned int index = *(unsigned int *)key;
   if (index >= array->capacity)
     return NULL;
   void *val_ptr = array->data + index * array->value_size;
@@ -48,7 +48,7 @@ void *array_lookup_elem(struct ArrayStub *array, const void *key) {
 long array_update_elem(struct ArrayStub *array, const void *key,
                        const void *value, unsigned long flags) {
   klee_assert(flags == 0);
-  uint index = *(uint *)key;
+  unsigned int index = *(unsigned int *)key;
   klee_assume(index < array->capacity);
   void *val_ptr = array->data + index * array->value_size;
   memcpy(val_ptr, value, array->value_size);
@@ -68,15 +68,15 @@ struct MapStub {
   /* Storing keys, values */
   char* keys_present;   /* Array storing all keys map has seen */
   char* values_present; /* Value for each key */
-  uint key_deleted[NUM_ELEMS]; /* 1 in nth position implies nth key has been
+  unsigned int key_deleted[NUM_ELEMS]; /* 1 in nth position implies nth key has been
                                  deleted */
-  uint keys_cached[NUM_ELEMS]; /* 1 in nth position implies nth key is cached */
-  uint
+  unsigned int keys_cached[NUM_ELEMS]; /* 1 in nth position implies nth key is cached */
+  unsigned int
       keys_seen; /* Number of unique keys seen by the map at any point in time*/
 
   /* Map config */
-  uint key_size;
-  uint value_size;
+  unsigned int key_size;
+  unsigned int value_size;
 };
 
 void *map_allocate(char* name, char* key_type, char* val_type, unsigned int key_size, unsigned int value_size,
