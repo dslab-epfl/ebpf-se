@@ -6,8 +6,52 @@
  * or GPL2.txt for full copies of the license.
  */
 
-#include <helpers/interfaces/fixed_size_event.h>
-#include <helpers/interfaces/variable_size_event.h>
+#ifdef KLEE_VERIFICATION
+#include "klee/klee.h"
+#endif
+
+#ifndef USES_BPF_KTIME_GET_BOOT_NS
+#define USES_BPF_KTIME_GET_BOOT_NS
+#endif
+
+#ifndef USES_BPF_GET_CURRENT_TASK
+#define USES_BPF_GET_CURRENT_TASK
+#endif
+
+#ifndef USES_BPF_GET_CURRENT_PID_TGID
+#define USES_BPF_GET_CURRENT_PID_TGID
+#endif
+
+#ifndef USES_BPF_TAIL_CALL
+#define USES_BPF_TAIL_CALL
+#endif
+
+#ifndef USES_BPF_GET_SMP_PROC_ID
+#define USES_BPF_GET_SMP_PROC_ID
+#endif
+
+#ifndef USES_BPF_MAPS
+#define USES_BPF_MAPS
+#endif
+
+#ifndef USES_BPF_MAP_LOOKUP_ELEM
+#define USES_BPF_MAP_LOOKUP_ELEM
+#endif
+
+#ifndef USES_BPF_RINGBUF_RESERVE
+#define USES_BPF_RINGBUF_RESERVE
+#endif
+
+#ifndef USES_BPF_RINGBUF_SUBMIT
+#define USES_BPF_RINGBUF_SUBMIT
+#endif
+
+#ifndef USES_BPF_PROBE_READ_KERNEL
+#define USES_BPF_PROBE_READ_KERNEL
+#endif
+
+#include "../../../../helpers/interfaces/fixed_size_event.h"
+#include "../../../../helpers/interfaces/variable_size_event.h"
 
 /*=============================== ENTER EVENT ===========================*/
 
@@ -36,6 +80,38 @@ int BPF_PROG(mkdir_e,
 
 	return 0;
 }
+
+#ifdef ENTER
+
+int main(int argc, char **argv) {
+	__u32 proc_id = 0;
+	stub_init_proc_id(proc_id);
+	__u64 pid_tgid;
+	klee_make_symbolic(&pid_tgid, sizeof(pid_tgid), "pid_tgid");
+	stub_init_pid_tgid(pid_tgid);
+	BPF_MAP_OF_MAPS_INIT(&ringbuf_maps, &ringbuf_map, "ringbuf_maps", "processor", "ringbuf");
+	BPF_MAP_INIT(&counter_maps, "counter_maps", "processor", "counter_map");
+	BPF_MAP_RESET(&counter_maps);
+
+	struct task_struct t;
+	t.thread_info.status = klee_int("thread status");
+	stub_init_current_task(&t);
+
+	struct pt_regs regs;
+  klee_make_symbolic(&regs, sizeof(struct pt_regs), "pt_regs");
+	regs.orig_ax = __NR_bpf;
+
+	get_task_btf_exists = klee_int("get_task_btf_exists");
+
+	BPF_BOOT_TIME_INIT();
+
+  if (____mkdir_e(0, &regs, 0))
+    return 1;
+
+	return 0;
+}
+
+#endif // ENTER
 
 /*=============================== ENTER EVENT ===========================*/
 
@@ -70,6 +146,6 @@ int BPF_PROG(mkdir_x,
 	auxmap__submit_event(auxmap, ctx);
 
 	return 0;
-}
+}	// TODO: path extraction
 
 /*=============================== EXIT EVENT ===========================*/

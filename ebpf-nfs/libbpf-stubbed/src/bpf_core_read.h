@@ -209,7 +209,7 @@ int abort() {
  *    0, if no matching type is found.
  */
 #define bpf_core_type_size(type)					    \
-	abort()
+	sizeof(type)
 
 /*
  * Convenience macro to check that provided enumerator value is defined in

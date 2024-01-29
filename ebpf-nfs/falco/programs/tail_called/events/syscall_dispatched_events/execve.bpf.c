@@ -34,7 +34,7 @@ int BPF_PROG(execve_e,
 
 	auxmap__submit_event(auxmap, ctx);
 	return 0;
-}
+} // TODO: path extraction
 
 /*=============================== ENTER EVENT ===========================*/
 
@@ -178,7 +178,7 @@ int BPF_PROG(execve_x,
 	 */
 	bpf_tail_call(ctx, &extra_event_prog_tail_table, T1_EXECVE_X);
 	return 0;
-}
+} // TODO: path extraction
 
 SEC("tp_btf/sys_exit")
 int BPF_PROG(t1_execve_x,
@@ -302,7 +302,7 @@ int BPF_PROG(t1_execve_x,
 
 	bpf_tail_call(ctx, &extra_event_prog_tail_table, T2_EXECVE_X);
 	return 0;
-}
+} // TODO: path extraction
 
 SEC("tp_btf/sys_exit")
 int BPF_PROG(t2_execve_x, struct pt_regs *regs, long ret)
@@ -334,6 +334,6 @@ int BPF_PROG(t2_execve_x, struct pt_regs *regs, long ret)
 
 	auxmap__submit_event(auxmap, ctx);
 	return 0;
-}
+} // TODO: path extraction
 
 /*=============================== EXIT EVENT ===========================*/

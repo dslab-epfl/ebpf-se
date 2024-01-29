@@ -44,7 +44,7 @@ int BPF_PROG(open_e,
 	auxmap__submit_event(auxmap, ctx);
 
 	return 0;
-}
+} // TODO: path extraction
 
 /*=============================== ENTER EVENT ===========================*/
 
@@ -104,6 +104,6 @@ int BPF_PROG(open_x,
 	auxmap__submit_event(auxmap, ctx);
 
 	return 0;
-}
+} // TODO: file struct extraction
 
 /*=============================== EXIT EVENT ===========================*/

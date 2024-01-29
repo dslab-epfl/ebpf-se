@@ -6,7 +6,51 @@
  * or GPL2.txt for full copies of the license.
  */
 
-#include <helpers/interfaces/variable_size_event.h>
+#ifdef KLEE_VERIFICATION
+#include "klee/klee.h"
+#endif
+
+#ifndef USES_BPF_KTIME_GET_BOOT_NS
+#define USES_BPF_KTIME_GET_BOOT_NS
+#endif
+
+#ifndef USES_BPF_GET_CURRENT_TASK
+#define USES_BPF_GET_CURRENT_TASK
+#endif
+
+#ifndef USES_BPF_GET_CURRENT_PID_TGID
+#define USES_BPF_GET_CURRENT_PID_TGID
+#endif
+
+#ifndef USES_BPF_TAIL_CALL
+#define USES_BPF_TAIL_CALL
+#endif
+
+#ifndef USES_BPF_GET_SMP_PROC_ID
+#define USES_BPF_GET_SMP_PROC_ID
+#endif
+
+#ifndef USES_BPF_MAPS
+#define USES_BPF_MAPS
+#endif
+
+#ifndef USES_BPF_MAP_LOOKUP_ELEM
+#define USES_BPF_MAP_LOOKUP_ELEM
+#endif
+
+#ifndef USES_BPF_RINGBUF_RESERVE
+#define USES_BPF_RINGBUF_RESERVE
+#endif
+
+#ifndef USES_BPF_RINGBUF_SUBMIT
+#define USES_BPF_RINGBUF_SUBMIT
+#endif
+
+#ifndef USES_BPF_PROBE_READ_KERNEL
+#define USES_BPF_PROBE_READ_KERNEL
+#endif
+
+#include "../../../../helpers/interfaces/variable_size_event.h"
 #include <asm-generic/errno.h>
 
 /*=============================== ENTER EVENT ===========================*/
@@ -44,7 +88,7 @@ int BPF_PROG(connect_e,
 	auxmap__submit_event(auxmap, ctx);
 
 	return 0;
-}
+} // TODO: socket_addr reading
 
 /*=============================== ENTER EVENT ===========================*/
 
@@ -94,6 +138,6 @@ int BPF_PROG(connect_x,
 	auxmap__submit_event(auxmap, ctx);
 
 	return 0;
-}
+}	// TODO: SOCKFD extraction
 
 /*=============================== EXIT EVENT ===========================*/

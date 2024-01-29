@@ -6,8 +6,60 @@
  * or GPL2.txt for full copies of the license.
  */
 
-#include <helpers/interfaces/fixed_size_event.h>
-#include <helpers/interfaces/variable_size_event.h>
+#ifdef KLEE_VERIFICATION
+#include "klee/klee.h"
+#endif
+
+#ifndef USES_BPF_KTIME_GET_BOOT_NS
+#define USES_BPF_KTIME_GET_BOOT_NS
+#endif
+
+#ifndef USES_BPF_GET_CURRENT_TASK
+#define USES_BPF_GET_CURRENT_TASK
+#endif
+
+#ifndef USES_BPF_GET_CURRENT_PID_TGID
+#define USES_BPF_GET_CURRENT_PID_TGID
+#endif
+
+#ifndef USES_BPF_TAIL_CALL
+#define USES_BPF_TAIL_CALL
+#endif
+
+#ifndef USES_BPF_PROBE_READ_KERNEL
+#define USES_BPF_PROBE_READ_KERNEL
+#endif
+
+#ifndef USES_BPF_PROBE_READ_USER
+#define USES_BPF_PROBE_READ_USER
+#endif
+
+#ifndef USES_BPF_GET_SMP_PROC_ID
+#define USES_BPF_GET_SMP_PROC_ID
+#endif
+
+#ifndef USES_BPF_MAPS
+#define USES_BPF_MAPS
+#endif
+
+#ifndef USES_BPF_MAP_LOOKUP_ELEM
+#define USES_BPF_MAP_LOOKUP_ELEM
+#endif
+
+#ifndef USES_BPF_RINGBUF_RESERVE
+#define USES_BPF_RINGBUF_RESERVE
+#endif
+
+#ifndef USES_BPF_RINGBUF_OUTPUT
+#define USES_BPF_RINGBUF_OUTPUT
+#endif
+
+#ifndef USES_BPF_RINGBUF_SUBMIT
+#define USES_BPF_RINGBUF_SUBMIT
+#endif
+
+#include "../../../../helpers/interfaces/fixed_size_event.h"
+#include "../../../../helpers/interfaces/variable_size_event.h"
 
 /*=============================== ENTER EVENT ===========================*/
 
@@ -40,6 +92,38 @@ int BPF_PROG(bind_e,
 
 	return 0;
 }
+
+#ifdef ENTER
+
+int main(int argc, char **argv) {
+	__u32 proc_id = 0;
+	stub_init_proc_id(proc_id);
+	__u64 pid_tgid;
+	klee_make_symbolic(&pid_tgid, sizeof(pid_tgid), "pid_tgid");
+	stub_init_pid_tgid(pid_tgid);
+	BPF_MAP_OF_MAPS_INIT(&ringbuf_maps, &ringbuf_map, "ringbuf_maps", "processor", "ringbuf");
+	BPF_MAP_INIT(&counter_maps, "counter_maps", "processor", "counter_map");
+	BPF_MAP_RESET(&counter_maps);
+
+	struct task_struct t;
+	t.thread_info.status = klee_int("thread status");
+	stub_init_current_task(&t);
+
+	struct pt_regs regs;
+  klee_make_symbolic(&regs, sizeof(struct pt_regs), "pt_regs");
+	regs.orig_ax = __NR_bind;
+
+	get_task_btf_exists = klee_int("get_task_btf_exists");
+
+	BPF_BOOT_TIME_INIT();
+
+  if (____bind_e(0, &regs, 0))
+    return 1;
+
+	return 0;
+}
+
+#endif // ENTER
 
 /*=============================== ENTER EVENT ===========================*/
 
@@ -84,5 +168,52 @@ int BPF_PROG(bind_x,
 
 	return 0;
 }
+
+#ifdef EXIT // TODO: access requires reading a path string
+
+int main(int argc, char **argv) {
+	__u32 proc_id = 0;
+	stub_init_proc_id(proc_id);
+	__u64 pid_tgid;
+	klee_make_symbolic(&pid_tgid, sizeof(pid_tgid), "pid_tgid");
+	stub_init_pid_tgid(pid_tgid);
+	BPF_MAP_OF_MAPS_INIT(&ringbuf_maps, &ringbuf_map, "ringbuf_maps", "processor", "ringbuf");
+	BPF_MAP_INIT(&counter_maps, "counter_maps", "processor", "counter_map");
+	BPF_MAP_RESET(&counter_maps);
+
+	klee_make_symbolic(&is_dropping, sizeof(is_dropping), "is_dropping");
+
+	BPF_MAP_INIT(&auxiliary_maps, "auxiliary_maps", "processor", "auxiliary_map");
+	BPF_MAP_RESET(&auxiliary_maps);
+
+	get_task_btf_exists = klee_int("get_task_btf_exists");
+
+	struct task_struct t;
+	t.thread_info.status = klee_int("thread status");
+	stub_init_current_task(&t);
+
+	struct pt_regs regs;
+  klee_make_symbolic(&regs, sizeof(struct pt_regs), "pt_regs");
+
+	struct sockaddr_un sock_addr;
+	klee_make_symbolic(&sock_addr, sizeof(sock_addr), "sock_addr");
+	uint16_t addrlen = sizeof(sock_addr);
+
+	regs.cx = (unsigned long) &sock_addr;
+	regs.si = (unsigned long) &sock_addr;
+	regs.dx = addrlen;
+
+
+	BPF_BOOT_TIME_INIT();
+	long ret;
+	klee_make_symbolic(&ret, sizeof(ret), "ret");
+
+  if (____bind_x(0, &regs, ret))
+    return 1;
+
+	return 0;
+}
+
+#endif // EXIT
 
 /*=============================== EXIT EVENT ===========================*/

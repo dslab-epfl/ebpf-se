@@ -6,8 +6,56 @@
  * or GPL2.txt for full copies of the license.
  */
 
-#include <helpers/interfaces/fixed_size_event.h>
-#include <helpers/interfaces/variable_size_event.h>
+#ifdef KLEE_VERIFICATION
+#include "klee/klee.h"
+#endif
+
+#ifndef USES_BPF_KTIME_GET_BOOT_NS
+#define USES_BPF_KTIME_GET_BOOT_NS
+#endif
+
+#ifndef USES_BPF_GET_CURRENT_PID_TGID
+#define USES_BPF_GET_CURRENT_PID_TGID
+#endif
+
+#ifndef USES_BPF_TAIL_CALL
+#define USES_BPF_TAIL_CALL
+#endif
+
+#ifndef USES_BPF_GET_SMP_PROC_ID
+#define USES_BPF_GET_SMP_PROC_ID
+#endif
+
+#ifndef USES_BPF_MAPS
+#define USES_BPF_MAPS
+#endif
+
+#ifndef USES_BPF_MAP_LOOKUP_ELEM
+#define USES_BPF_MAP_LOOKUP_ELEM
+#endif
+
+#ifndef USES_BPF_RINGBUF_RESERVE
+#define USES_BPF_RINGBUF_RESERVE
+#endif
+
+#ifndef USES_BPF_RINGBUF_SUBMIT
+#define USES_BPF_RINGBUF_SUBMIT
+#endif
+
+#ifdef T2_EXIT
+#ifndef USES_BPF_RINGBUF_OUTPUT
+#define USES_BPF_RINGBUF_OUTPUT
+#endif
+#ifndef USES_BPF_PROBE_READ_KERNEL
+#define USES_BPF_PROBE_READ_KERNEL
+#endif
+#ifndef USES_BPF_GET_CURRENT_TASK
+#define USES_BPF_GET_CURRENT_TASK
+#endif
+#endif 	// T2_EXIT
+
+#include "../../../../helpers/interfaces/fixed_size_event.h"
+#include "../../../../helpers/interfaces/variable_size_event.h"
 
 /*=============================== ENTER EVENT ===========================*/
 
@@ -34,6 +82,30 @@ int BPF_PROG(clone3_e,
 
 	return 0;
 }
+
+#ifdef ENTER
+
+int main(int argc, char **argv) {
+	__u32 proc_id = 0;
+	stub_init_proc_id(proc_id);
+	__u64 pid_tgid;
+	klee_make_symbolic(&pid_tgid, sizeof(pid_tgid), "pid_tgid");
+	stub_init_pid_tgid(pid_tgid);
+	BPF_MAP_OF_MAPS_INIT(&ringbuf_maps, &ringbuf_map, "ringbuf_maps", "processor", "ringbuf");
+	BPF_MAP_INIT(&counter_maps, "counter_maps", "processor", "counter_map");
+	BPF_MAP_RESET(&counter_maps);
+
+	get_task_btf_exists = klee_int("get_task_btf_exists");
+
+	BPF_BOOT_TIME_INIT();
+
+  if (____clone3_e(0, 0, 0))
+    return 1;
+
+	return 0;
+}
+
+#endif // ENTER
 
 /*=============================== ENTER EVENT ===========================*/
 
@@ -254,5 +326,56 @@ int BPF_PROG(t2_clone3_x,
 	auxmap__submit_event(auxmap, ctx);
 	return 0;
 }
+
+/** Symbex driver starts here **/
+
+#ifdef T2_EXIT
+
+int main(int argc, char **argv) {
+	__u32 proc_id = 0;
+	stub_init_proc_id(proc_id);
+	__u64 pid_tgid;
+	klee_make_symbolic(&pid_tgid, sizeof(pid_tgid), "pid_tgid");
+	stub_init_pid_tgid(pid_tgid);
+	BPF_MAP_OF_MAPS_INIT(&ringbuf_maps, &ringbuf_map, "ringbuf_maps", "processor", "ringbuf");
+	BPF_MAP_INIT(&counter_maps, "counter_maps", "processor", "counter_map");
+	BPF_MAP_RESET(&counter_maps);
+	BPF_MAP_INIT(&auxiliary_maps, "auxiliary_maps", "processor", "auxiliary_map");
+	BPF_MAP_RESET(&auxiliary_maps);
+
+	get_task_btf_exists = 0;
+
+	BPF_BOOT_TIME_INIT();
+
+	struct task_struct child;
+	struct task_struct child_reaper;
+
+	struct signal_struct signal;
+	struct pid pid;
+	// struct upid upid;
+	struct pid_namespace pid_ns;
+
+	child.signal = &signal;
+	signal.pids[PIDTYPE_TGID] = &pid;
+	pid.level = 0;
+	pid.numbers[0].ns = &pid_ns;
+	// upid.ns = &pid_ns;
+	pid_ns.child_reaper = &child_reaper;
+	u64 start_time;
+	klee_make_symbolic(&start_time, sizeof(start_time), "start_time");
+	child_reaper.start_time = start_time;
+
+	long ret;
+	klee_make_symbolic(&ret, sizeof ret, "ret");
+
+	stub_init_current_task(&child);
+
+  if (____t2_clone3_x(0, 0, ret))
+    return 1;
+
+	return 0;
+}
+
+#endif	// T2_EXIT
 
 /*=============================== EXIT EVENT ===========================*/

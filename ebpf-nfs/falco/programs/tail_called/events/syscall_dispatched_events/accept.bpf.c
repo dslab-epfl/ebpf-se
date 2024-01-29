@@ -6,8 +6,44 @@
  * or GPL2.txt for full copies of the license.
  */
 
-#include <helpers/interfaces/fixed_size_event.h>
-#include <helpers/interfaces/variable_size_event.h>
+#ifdef KLEE_VERIFICATION
+#include "klee/klee.h"
+#endif
+
+#ifndef USES_BPF_KTIME_GET_BOOT_NS
+#define USES_BPF_KTIME_GET_BOOT_NS
+#endif
+
+#ifndef USES_BPF_GET_CURRENT_PID_TGID
+#define USES_BPF_GET_CURRENT_PID_TGID
+#endif
+
+#ifndef USES_BPF_TAIL_CALL
+#define USES_BPF_TAIL_CALL
+#endif
+
+#ifndef USES_BPF_GET_SMP_PROC_ID
+#define USES_BPF_GET_SMP_PROC_ID
+#endif
+
+#ifndef USES_BPF_MAPS
+#define USES_BPF_MAPS
+#endif
+
+#ifndef USES_BPF_MAP_LOOKUP_ELEM
+#define USES_BPF_MAP_LOOKUP_ELEM
+#endif
+
+#ifndef USES_BPF_RINGBUF_RESERVE
+#define USES_BPF_RINGBUF_RESERVE
+#endif
+
+#ifndef USES_BPF_RINGBUF_SUBMIT
+#define USES_BPF_RINGBUF_SUBMIT
+#endif
+
+#include "../../../../helpers/interfaces/fixed_size_event.h"
+#include "../../../../helpers/interfaces/variable_size_event.h"
 
 /*=============================== ENTER EVENT ===========================*/
 
@@ -34,6 +70,30 @@ int BPF_PROG(accept_e,
 
 	return 0;
 }
+
+#ifdef ENTER
+
+int main(int argc, char **argv) {
+	__u32 proc_id = 0;
+	stub_init_proc_id(proc_id);
+	__u64 pid_tgid;
+	klee_make_symbolic(&pid_tgid, sizeof(pid_tgid), "pid_tgid");
+	stub_init_pid_tgid(pid_tgid);
+	BPF_MAP_OF_MAPS_INIT(&ringbuf_maps, &ringbuf_map, "ringbuf_maps", "processor", "ringbuf");
+	BPF_MAP_INIT(&counter_maps, "counter_maps", "processor", "counter_map");
+	BPF_MAP_RESET(&counter_maps);
+
+	get_task_btf_exists = klee_int("get_task_btf_exists");
+
+	BPF_BOOT_TIME_INIT();
+
+  if (____accept_e(0, 0, 0))
+    return 1;
+
+	return 0;
+}
+
+#endif // ENTER
 
 /*=============================== ENTER EVENT ===========================*/
 
@@ -119,5 +179,60 @@ int BPF_PROG(accept_x,
 
 	return 0;
 }
+
+/** Symbex driver starts here **/
+
+#ifdef KLEE_VERIFICATION
+
+// int main(int argc, char **argv) {
+// 	__u32 proc_id = 0;
+// 	stub_init_proc_id(proc_id);
+// 	__u64 pid_tgid;
+// 	klee_make_symbolic(&pid_tgid, sizeof(pid_tgid), "pid_tgid");
+// 	stub_init_pid_tgid(pid_tgid);
+// 	BPF_MAP_OF_MAPS_INIT(&ringbuf_maps, &ringbuf_map, "ringbuf_maps", "processor", "ringbuf");
+// 	BPF_MAP_INIT(&counter_maps, "counter_maps", "processor", "counter_map");
+// 	BPF_MAP_RESET(&counter_maps);
+// 	BPF_MAP_INIT(&auxiliary_maps, "auxiliary_maps", "processor", "auxiliary_map");
+// 	// struct auxiliary_map aux;
+// 	// klee_make_symbolic(&aux, sizeof(aux), "local aux map");
+// 	// if ((bpf_map_update_elem(&auxiliary_maps, &proc_id, &aux, 0) < 0)) return -1;
+// 	BPF_MAP_RESET(&auxiliary_maps);
+
+// 	get_task_btf_exists = klee_int("get_task_btf_exists");
+
+// 	BPF_BOOT_TIME_INIT();
+
+// 	struct task_struct current_task;
+// 	struct files_struct files;
+// 	struct fdtable fdt;
+// 	struct file *fds;
+// 	struct file fd;
+// 	current_task.files = &files;
+// 	files.fdt = &fdt;
+// 	fdt.fd = &fds;
+// 	fds = &fd - 1;	// array of fds where 1th element is fd.
+
+// 	struct socket private_data;
+// 	struct sock sk;
+// 	short unsigned int skc_family;
+// 	skc_family = klee_int("socket_family");
+// 	fd.private_data = &private_data;
+// 	private_data.sk = &sk;
+// 	klee_make_symbolic(&sk, sizeof(struct sock), "socket");
+// 	// sizeof(struct inet_sock)
+	
+
+
+// 	long ret;
+// 	ret = klee_int(ret);
+// 	klee_assume(ret <= 1);	// cap at 1 to avoid thinking about 
+//   if (____accept_x(0, 0, ret))
+//     return 1;
+
+// 	return 0;
+// }
+
+#endif // KLEE_VERIFICATION
 
 /*=============================== EXIT EVENT ===========================*/

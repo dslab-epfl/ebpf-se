@@ -8,10 +8,10 @@
 
 #pragma once
 
-#include <helpers/base/shared_size.h>
-#include <helpers/base/push_data.h>
-#include <helpers/extract/extract_from_kernel.h>
-#include <helpers/base/stats.h>
+#include "../../helpers/base/shared_size.h"
+#include "../../helpers/base/push_data.h"
+#include "../../helpers/extract/extract_from_kernel.h"
+#include "../../helpers/base/stats.h"
 
 /* Concept of auxamp (auxiliary map):
  *

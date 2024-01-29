@@ -43,9 +43,10 @@ void get_packet(enum PacketTypes type, struct xdp_md* ctx){
   if(type == IPV4 || type == FRAGV4 || type == NON_IP){
     struct katran_pkt* pkt =   malloc(sizeof(struct katran_pkt));
     klee_make_symbolic(pkt, sizeof(struct katran_pkt), "lb_pkt");
-    if (type == NON_IP)
-      klee_assume(pkt->ether.h_proto != bpf_htons(ETH_P_IP) && pkt->ether.h_proto != bpf_htons(ETH_P_IPV6));
-    else{
+    if (type == NON_IP) {
+      klee_assume(pkt->ether.h_proto != bpf_htons(ETH_P_IP));
+      klee_assume(pkt->ether.h_proto != bpf_htons(ETH_P_IPV6));
+    } else {
       pkt->ether.h_proto = bpf_htons(ETH_P_IP);
       pkt->ipv4.version = 4;
       pkt->ipv4.ihl = sizeof(struct iphdr) / 4;

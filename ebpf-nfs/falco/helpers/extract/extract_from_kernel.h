@@ -414,10 +414,11 @@ static __always_inline uint64_t extract__capability(struct task_struct *task, en
 
 	// Kernel 6.3 changed the kernel_cap_struct type from uint32_t[2] to uint64_t.
 	// Luckily enough, it also changed field name from cap to val.
-	if(bpf_core_field_exists(((struct kernel_cap_struct *)0)->cap))
+	if(1) // no bpf_core_field_exists in stub
 	{
 		return capabilities_to_scap(((unsigned long)cap_struct.cap[1] << 32) | cap_struct.cap[0]);
 	}
+	return 0;
 	kernel_cap_t___v6_3 *new_cap = (kernel_cap_t___v6_3 *)&cap_struct;
 	return capabilities_to_scap(((unsigned long)new_cap->val));
 }

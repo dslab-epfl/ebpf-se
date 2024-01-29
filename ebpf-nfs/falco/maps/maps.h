@@ -160,12 +160,21 @@ struct
  * map where the event is temporally saved before being
  * pushed in the ringbuffer.
  */
-struct
-{
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__type(key, uint32_t);
-	__type(value, struct auxiliary_map);
-} auxiliary_maps __weak SEC(".maps");
+// struct
+// {
+// 	__uint(type, BPF_MAP_TYPE_ARRAY);
+// 	__type(key, uint32_t);
+// 	__type(value, struct auxiliary_map);
+// } auxiliary_maps __weak SEC(".maps");
+
+struct bpf_map_def SEC(".maps") auxiliary_maps = {
+  .type = BPF_MAP_TYPE_ARRAY,
+  .key_size = sizeof(uint32_t),
+  .value_size = sizeof(struct auxiliary_map),
+  .max_entries = 1, // chose arbitrarily, maybe match up with ringbuf_maps
+  .map_flags = 0,
+  .map_id = -1,
+};
 
 /**
  * @brief For every CPU on the system we have a counter

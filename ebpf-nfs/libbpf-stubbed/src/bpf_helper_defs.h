@@ -3063,7 +3063,19 @@ static long (*bpf_skb_output)(void *ctx, void *map, __u64 flags, void *data, __u
  * Returns
  * 	0 on success, or a negative error in case of failure.
  */
+#ifdef USES_BPF_PROBE_READ_USER
+static __attribute__ ((noinline)) long bpf_probe_read_user(void *dst, __u32 size, const void *unsafe_ptr) {
+  int i;
+	char* d = dst;
+	const char* s = unsafe_ptr;
+	for (i = 0; i < size; i++) {
+		d[i] = s[i];
+	}
+  return 0;
+}
+#else
 static long (*bpf_probe_read_user)(void *dst, __u32 size, const void *unsafe_ptr) = (void *) 112;
+#endif
 
 /*
  * bpf_probe_read_kernel
@@ -3134,7 +3146,21 @@ static long (*bpf_probe_read_kernel)(void *dst, __u32 size, const void *unsafe_p
  * 	including the trailing NUL character. On error, a negative
  * 	value.
  */
+#ifdef USES_BPF_PROBE_READ_USER_STR
+static __attribute__ ((noinline)) long bpf_probe_read_user_str(void *dst, __u32 size, const void *unsafe_ptr) {
+  size_t len = strnlen(unsafe_ptr, size);
+  if (len == size) {
+    ((char*)dst)[size - 1] == '\0';
+    strncpy(dst, unsafe_ptr, size - 1);
+  } else {
+    strncpy(dst, unsafe_ptr, len + 1);
+  }
+  if (len == size) return len;
+  return len + 1;
+}
+#else
 static long (*bpf_probe_read_user_str)(void *dst, __u32 size, const void *unsafe_ptr) = (void *) 114;
+#endif
 
 /*
  * bpf_probe_read_kernel_str
@@ -3146,7 +3172,21 @@ static long (*bpf_probe_read_user_str)(void *dst, __u32 size, const void *unsafe
  * 	On success, the strictly positive length of the string, including
  * 	the trailing NUL character. On error, a negative value.
  */
+#ifdef USES_BPF_PROBE_READ_KERNEL_STR
+static __attribute__ ((noinline)) long bpf_probe_read_kernel_str(void *dst, __u32 size, const void *unsafe_ptr) {
+  size_t len = strnlen(unsafe_ptr, size);
+  if (len == size) {
+    ((char*)dst)[size - 1] == '\0';
+    strncpy(dst, unsafe_ptr, size - 1);
+  } else {
+    strncpy(dst, unsafe_ptr, len + 1);
+  }
+  if (len == size) return len;
+  return len + 1;
+}
+#else
 static long (*bpf_probe_read_kernel_str)(void *dst, __u32 size, const void *unsafe_ptr) = (void *) 115;
+#endif
 
 /*
  * bpf_tcp_send_ack
