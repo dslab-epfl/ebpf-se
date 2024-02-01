@@ -1,3 +1,5 @@
+/* Step 1: Declaration of helpers used, should be of the form USES_METHODNAME. */
+
 #ifndef USES_BPF_XDP_ADJUST_HEAD
 #define USES_BPF_XDP_ADJUST_HEAD
 #endif
@@ -14,12 +16,15 @@
 #define USES_BPF_CSUM_DIFF
 #endif
 
+/* One declaration for all bpf map methods */
+
 #ifndef USES_BPF_MAPS
 #define USES_BPF_MAPS
 #endif
 
 #include "lb_kern.h"
 
+/* Necessary for all klee calls, e.g., klee_make_symbolic() */
 #ifdef KLEE_VERIFICATION
 #include "klee/klee.h"
 #endif
@@ -254,6 +259,7 @@ int main(int argc, char **argv) {
     ipaddrs[i] = localhost + i;
   }
 
+  /* Step 2: Initializing each BPF map. The strings are not very important for just symbex (needed only for human readable performance interfaces) */
   BPF_MAP_INIT(&targets_map, "targets_list", "", "target_ip");
   BPF_MAP_INIT(&macs_map, "ips_to_mac_map", "ip", "mac_addr");
   BPF_MAP_INIT(&targets_count, "targets_counter", "", "num_targets");
@@ -270,6 +276,8 @@ int main(int argc, char **argv) {
     if (bpf_map_update_elem(&macs_map, &ipaddrs[i], &dst[i], 0) < 0)
       return -1;
   }
+
+  /* Step 3: Making input struct xdp_md symbolic */
   struct crab_pkt *pkt = malloc(sizeof(struct crab_pkt));
   klee_make_symbolic(pkt, sizeof(struct crab_pkt), "lb_pkt");
   pkt->ether.h_proto = bpf_htons(ETH_P_IP);
@@ -285,6 +293,7 @@ int main(int argc, char **argv) {
   test.rx_queue_index = 0;
 
   bpf_begin();
+  /* Invoking target function */
   if (xdp_prog_simple(&test))
     return 1;
   return 0;
