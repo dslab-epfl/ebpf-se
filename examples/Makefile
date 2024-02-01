@@ -81,12 +81,3 @@ symbex:
 	/usr/bin/time -v \
 		klee -kdalloc -kdalloc-heap-start-address=0x00040000000 -kdalloc-heap-size=1 -libc=uclibc --external-calls=all --disable-verify \
 		-solver-backend=z3 --exit-on-error -max-memory=750000 -search=dfs $(XDP_TARGETS).bc
-
-helper-contracts:
-	cd $(PIX_DIR)/dpdk-nfs/perf-contracts && make clean && make LLVM=TRUE
-
-perf-contract:
-	cd klee-last && $(KLEE_INCLUDE)/../scripts/process-traces.sh . verify-dpdk llvm Num_bucket_traversals 1 Num_hash_collisions 0  expired_flows 0
-
-perf-interface: clean libbpf xdp-target symbex helper-contracts perf-contract
-	bash $(KLEE_INCLUDE)/../scripts/tree-gen/build_trees.sh -m 1000 -n 0 -e llvm
