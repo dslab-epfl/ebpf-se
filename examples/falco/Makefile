@@ -2,8 +2,7 @@
 
 include ../Makefile
 
-# XDP_TARGETS := ./programs/attached/events/sched_switch.bpf
-# XDP_FUNCTION := ____sched_switch
+# List of targets for attached programs. 
 
 sys_exit_target: XDP_C := ./programs/attached/dispatchers/syscall_exit.bpf.c
 sys_exit_symbex: XDP_TARGETS := syscall_exit.bpf
@@ -46,6 +45,8 @@ page_fault_user_symbex: XDP_TARGETS := page_fault_user.bpf
 
 page_fault_user_target: xdp-target
 page_fault_user_symbex: symbex
+
+# List of tail-called syscall programs
 
 drop_target: XDP_C := ./programs/tail_called/events/custom_logic/drop.bpf.c
 drop_symbex: XDP_TARGETS := drop.bpf

@@ -14,13 +14,13 @@ BPF hooks used:
 
 To symbex:
 
-```
+```bash
 make target PROG=[program]
 make symbex
 ```
 
 Symbexed programs:
-- CGROUPS
+- CGROUP
 - RELEASE
 
 TODO programs:
