@@ -27,7 +27,7 @@ This also creates a `paths.sh` file which contains commands to add `klee` and it
 Then, to test the tool on any of the provided examples (for instance, Katran):
 ```bash
 cd examples/katran  # Replace with example of your choice here
-make libbpf-stubbed # This needs to be done only for the first example you run
+make libbpf # This needs to be done only for the first example you run
 make xdp-target
 make symbex
 ```
