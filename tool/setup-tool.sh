@@ -359,7 +359,9 @@ package_install \
 [ -n "$CLEAN_KLEE" ]        && clean_klee
 
 # Install things
-# { [ -n "$INSTALL_ALL" ] || [ -n "$INSTALL_Z3" ]   ; } && source_install_z3
-# { [ -n "$INSTALL_ALL" ] || [ -n "$INSTALL_LLVM" ] ; } && bin_install_llvm
-# { [ -n "$INSTALL_ALL" ] || [ -n "$INSTALL_KLEE_UCLIBC" ] ; } && source_install_klee_uclibc
+{ [ -n "$INSTALL_ALL" ] || [ -n "$INSTALL_Z3" ]   ; } && source_install_z3
+{ [ -n "$INSTALL_ALL" ] || [ -n "$INSTALL_LLVM" ] ; } && bin_install_llvm
+{ [ -n "$INSTALL_ALL" ] || [ -n "$INSTALL_KLEE_UCLIBC" ] ; } && source_install_klee_uclibc
 { [ -n "$INSTALL_ALL" ] || [ -n "$INSTALL_KLEE" ] ; } && source_install_klee
+
+source $PATHSFILE
