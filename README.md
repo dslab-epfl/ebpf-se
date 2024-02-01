@@ -18,6 +18,7 @@ First, setup the tool as follows:
 ```bash
 cd tool
 ./setup-tool.sh
+source paths.sh
 ```
 
 This step should take approximately 10 minutes and will install the symbolic execution along with all of its dependencies ([KLEE](https://github.com/klee/klee), [klee-uclibc](https://github.com/klee/klee-uclibc) and [Z3](https://github.com/Z3Prover/z3)).
@@ -26,6 +27,7 @@ This also creates a `paths.sh` file which contains commands to add `klee` and it
 Then, to test the tool on any of the provided examples (for instance, Katran):
 ```bash
 cd examples/katran  # Replace with example of your choice here
+make libbpf-stubbed # This needs to be done only for the first example you run
 make xdp-target
 make symbex
 ```

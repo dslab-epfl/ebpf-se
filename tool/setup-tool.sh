@@ -350,7 +350,8 @@ package_install \
 	libtcmalloc-minimal4 \
 	unzip \
 	doxygen \
-	libelf-dev
+	libelf-dev \
+	time
 
 # Clean things
 [ -n "$CLEAN_Z3" ]          && clean_z3
@@ -363,5 +364,3 @@ package_install \
 { [ -n "$INSTALL_ALL" ] || [ -n "$INSTALL_LLVM" ] ; } && bin_install_llvm
 { [ -n "$INSTALL_ALL" ] || [ -n "$INSTALL_KLEE_UCLIBC" ] ; } && source_install_klee_uclibc
 { [ -n "$INSTALL_ALL" ] || [ -n "$INSTALL_KLEE" ] ; } && source_install_klee
-
-source $PATHSFILE
