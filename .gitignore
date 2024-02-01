@@ -7,10 +7,8 @@
 *.aux
 *.cmo
 *.byte
-#*
 *#
 .#*
-fullpage.sty
 *.vo
 *.glob
 *.cache
@@ -25,12 +23,9 @@ _*
 build/
 TAGS
 .vagrant
-validator/_build
-validator/out
-klee-*/
-/nat/testbed/analysis/*
+klee-out-*/
 *.csv
-nf/pin/counts.so
+*.so
 .vscode/
 *.eps
 *.png
@@ -42,4 +37,3 @@ neg-tree*
 klee-last
 _build
 tags
-.vscode
