@@ -17,9 +17,10 @@
 
 # Analyzing an example
 
-To symbolically execute any of the xdp examples, run `make xdp-target; make symbex` from within the corresponding directory. 
+To symbolically execute any of the XDP examples, run `make xdp-target; make symbex` from within the corresponding directory. 
 Make sure you have run `make libbpf` once before.
 Each of the non-xdp examples contain several subprograms within them. To symbex any of these subprograms, please refer to the corresponding README.
+WARNING: The non-XDP programs are still work in progress. 
 
 # Analyzing your own example
 
