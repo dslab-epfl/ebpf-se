@@ -37,3 +37,4 @@ neg-tree*
 klee-last
 _build
 tags
+paths.sh
