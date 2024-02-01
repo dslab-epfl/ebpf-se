@@ -45,107 +45,6 @@ struct iphdr;
 struct ipv6hdr;
 
 /*
- * Helper structure used by eBPF C program
- * to describe BPF map attributes to libbpf loader
- */
-struct bpf_map_def {
-  unsigned int type;
-  unsigned int key_size;
-  unsigned int value_size;
-  unsigned int max_entries;
-  unsigned int map_flags;
-  unsigned int map_id;
-};
-
-#if (defined USES_BPF_MAPS) && (defined KLEE_VERIFICATION)
-#ifndef REPLAY
-#include "bpf/bpf_map_helper_defs.h"
-#else 
-#include "bpf/bpf_map_helper_defs_replay.h"
-#endif 
-
-#include <assert.h>
-#include <malloc.h>
-#include <string.h>
-
-#define MAX_BPF_MAPS 10 // Just a random size for now
-enum MapStubTypes { ArrayStub, MapStub, MapofMapStub };
-void *bpf_map_stubs[MAX_BPF_MAPS];
-enum MapStubTypes bpf_map_stub_types[MAX_BPF_MAPS];
-unsigned int bpf_map_ctr = 0;
-unsigned int record_calls = 0;
-char *prefix; /* For tracing */
-
-/* This is the same list of PCVs and OVs as in the contract file. This is
- * unfortunate duplication and should be fixed */
-
-int traced_variable_type(char *variable, char **type) {
-  *type = malloc(4 * sizeof(char));
-  // Compare against known PCVs. None for BPF maps yet.
-  if (!strcmp(variable, "bpf_map_type") ) {
-    strcpy(*type, "SV");
-    return 1;
-  } else if (!strcmp(variable, "map")) {
-    strcpy(*type, "DS");
-    return 1;
-  }
-  return 0;
-}
-
-void bpf_begin(){ record_calls = 1;}
-
-void bpf_map_init_stub(struct bpf_map_def *map, char *name, char *key_type, char *val_type) {
-  map->map_id = bpf_map_ctr++;
-  if (map->type == 2 | map->type == 6 | map->type == 14 || map->type == 16) {
-    // Array, per-cpu Array, devmap, cpumap This should be in terms of the enum
-    bpf_map_stubs[map->map_id] =
-        array_allocate(name, val_type, map->value_size, map->max_entries);
-    bpf_map_stub_types[map->map_id] = ArrayStub;
-  } else if (map->type == 1 | map->type == 5 | map->type == 9 | map->type == 17) {
-    // Hash/ per-cpu hash. Again, should be in terms of the enum
-    bpf_map_stubs[map->map_id] =
-        map_allocate(name, key_type, val_type, map->key_size, map->value_size, map->max_entries);
-    bpf_map_stub_types[map->map_id] = MapStub;
-  }
-  else if (map->type != 27) // no initialization required for ringbuffer
-    assert(0 && "Unsupported map type");
-  return;
-}
-
-void bpf_map_of_maps_init_stub(struct bpf_map_def* outer, struct bpf_map_def* inner, char *name, char *key_type, char * val_type){
-  outer->map_id = bpf_map_ctr++;
-  assert(outer->type == 12 || outer->type == 13);
-  bpf_map_stubs[outer->map_id] = map_of_map_allocate(inner,bpf_map_ctr);
-  bpf_map_stub_types[outer->map_id] = MapofMapStub;
-  assert(inner->type == 1 || inner->type == 2 || inner->type == 5 || inner->type == 9 || inner->type == 27);
-  if (inner->type == 2) {
-    bpf_map_stubs[bpf_map_ctr] = array_allocate(name, val_type, inner->value_size, inner->max_entries);
-    bpf_map_stub_types[bpf_map_ctr] = ArrayStub;
-    array_reset(bpf_map_stubs[bpf_map_ctr]);
-    bpf_map_ctr++;
-  } else if (inner->type != 27) {
-    bpf_map_stubs[bpf_map_ctr] = map_allocate(name, key_type, val_type, inner->key_size, inner->value_size, inner->max_entries);
-    bpf_map_stub_types[bpf_map_ctr] = MapStub;
-    bpf_map_ctr++;
-  }
-}
-
-void bpf_map_reset_stub(struct bpf_map_def* map) {
-  struct bpf_map_def *map_ptr = (struct bpf_map_def *) map;
-  if (bpf_map_stub_types[map_ptr->map_id] == ArrayStub)
-    array_reset(bpf_map_stubs[map_ptr->map_id]);
-  else
-    assert(0 && "Reset unsupported for given map type");
-}
-#define BPF_MAP_INIT(x,y,z,w) bpf_map_init_stub(x,y,z,w)
-#define BPF_MAP_OF_MAPS_INIT(x,y,z,w,v) bpf_map_of_maps_init_stub(x,y,z,w,v)
-#define BPF_MAP_RESET(x) bpf_map_reset_stub(x)
-#else
-#define BPF_MAP_INIT(x,y,z)
-#define BPF_MAP_OF_MAPS_INIT(x,y,z,w)
-#endif
-
-/*
  * bpf_map_lookup_elem
  *
  * 	Perform a lookup in *map* for an entry associated to *key*.
@@ -154,29 +53,7 @@ void bpf_map_reset_stub(struct bpf_map_def* map) {
  * 	Map value associated to *key*, or **NULL** if no entry was
  * 	found.
  */
-
-#ifdef USES_BPF_MAP_LOOKUP_ELEM
-static __attribute__ ((noinline)) void *bpf_map_lookup_elem(void *map, const void *key) {
-  // if(record_calls){
-  //   klee_trace_ret_just_ptr(sizeof(void*));
-  //   klee_add_bpf_call();
-  // }
-  struct bpf_map_def *map_ptr = ((struct bpf_map_def *)map);
-  // TRACE_VAL((uint32_t)(map_ptr), "map", _u32)
-  // TRACE_VAR(map_ptr->type, "bpf_map_type");
-  if (bpf_map_stub_types[map_ptr->map_id] == ArrayStub)
-    return array_lookup_elem(bpf_map_stubs[map_ptr->map_id], key);
-  else if (bpf_map_stub_types[map_ptr->map_id] == MapStub)
-    return map_lookup_elem(bpf_map_stubs[map_ptr->map_id], key);
-  else if (bpf_map_stub_types[map_ptr->map_id] == MapofMapStub)
-    return map_of_map_lookup_elem(bpf_map_stubs[map_ptr->map_id], key);
-  else
-    assert(0 && "Unsupported map type");
-}
-#else
 static void *(*bpf_map_lookup_elem)(void *map, const void *key) = (void *) 1;
-
-#endif
 
 /*
  * bpf_map_update_elem
@@ -198,28 +75,7 @@ static void *(*bpf_map_lookup_elem)(void *map, const void *key) = (void *) 1;
  * Returns
  * 	0 on success, or a negative error in case of failure.
  */
-
-#ifdef USES_BPF_MAP_UPDATE_ELEM
-static __attribute__ ((noinline)) long bpf_map_update_elem(void *map, const void *key, const void *value,
-                                __u64 flags) {
-  // if(record_calls){
-  //   klee_trace_ret();
-  //   klee_add_bpf_call();
-  // }
-  struct bpf_map_def *map_ptr = ((struct bpf_map_def *)map);
-  // TRACE_VAL((uint32_t)(map_ptr), "map", _u32)
-  // TRACE_VAR(map_ptr->type, "bpf_map_type");
-  if (bpf_map_stub_types[map_ptr->map_id] == ArrayStub)
-    return array_update_elem(bpf_map_stubs[map_ptr->map_id], key, value, flags);
-  else if (bpf_map_stub_types[map_ptr->map_id] == MapStub)  // XSK_MAP should only update from userspace
-    return map_update_elem(bpf_map_stubs[map_ptr->map_id], key, value, flags);
-  else
-    assert(0 && "Unsupported map type");
-}
-#else
-static long (*bpf_map_update_elem)(void *map, const void *key,
-                                   const void *value, __u64 flags) = (void *) 2;
-#endif
+static long (*bpf_map_update_elem)(void *map, const void *key, const void *value, __u64 flags) = (void *) 2;
 
 /*
  * bpf_map_delete_elem
@@ -229,19 +85,7 @@ static long (*bpf_map_update_elem)(void *map, const void *key,
  * Returns
  * 	0 on success, or a negative error in case of failure.
  */
-#ifdef USES_BPF_MAP_DELETE_ELEM
-static __attribute__ ((noinline)) long bpf_map_delete_elem(void *map, const void *key) {
-  struct bpf_map_def *map_ptr = ((struct bpf_map_def *)map);
-  // TRACE_VAL((uint32_t)(map_ptr), "map", _u32)
-  // TRACE_VAR(map_ptr->type, "bpf_map_type");
-  if (bpf_map_stub_types[map_ptr->map_id] == MapStub)
-    return map_delete_elem(bpf_map_stubs[map_ptr->map_id], key);
-  else
-    assert(0 && "Unsupported map type");
-}
-#else
 static long (*bpf_map_delete_elem)(void *map, const void *key) = (void *) 3;
-#endif
 
 /*
  * bpf_probe_read
@@ -267,50 +111,24 @@ static long (*bpf_probe_read)(void *dst, __u32 size, const void *unsafe_ptr) = (
  * Returns
  * 	Current *ktime*.
  */
-
-#ifdef USES_BPF_KTIME_GET_NS
-unsigned long long last_time = 0;
-
-static __attribute__ ((noinline)) void bpf_time_init_stub(void) {
-  // if(record_calls){
-  //   klee_trace_ret();
-  //   klee_add_bpf_call();
-  // }
-  klee_make_symbolic(&last_time, sizeof(last_time), "current_time");
-}
-
-static __attribute__ ((noinline)) unsigned long long bpf_ktime_get_ns(void) {
-  // if(record_calls){
-  //   klee_trace_ret();
-  //   klee_add_bpf_call();
-  // }
-  unsigned long long time;
-  klee_make_symbolic(&time, sizeof(time), "current_time");
-  klee_assume(last_time <= time);
-  last_time = time;
-  return time;
-}
-#define BPF_TIME_INIT() bpf_time_init_stub()
-#else
 static __u64 (*bpf_ktime_get_ns)(void) = (void *) 5;
-#endif
 
 /*
  * bpf_trace_printk
  *
  * 	This helper is a "printk()-like" facility for debugging. It
  * 	prints a message defined by format *fmt* (of size *fmt_size*)
- * 	to file *\/sys/kernel/tracing/trace* from TraceFS, if
+ * 	to file *\/sys/kernel/debug/tracing/trace* from DebugFS, if
  * 	available. It can take up to three additional **u64**
  * 	arguments (as an eBPF helpers, the total number of arguments is
  * 	limited to five).
  *
  * 	Each time the helper is called, it appends a line to the trace.
- * 	Lines are discarded while *\/sys/kernel/tracing/trace* is
- * 	open, use *\/sys/kernel/tracing/trace_pipe* to avoid this.
+ * 	Lines are discarded while *\/sys/kernel/debug/tracing/trace* is
+ * 	open, use *\/sys/kernel/debug/tracing/trace_pipe* to avoid this.
  * 	The format of the trace is customizable, and the exact output
  * 	one will get depends on the options set in
- * 	*\/sys/kernel/tracing/trace_options* (see also the
+ * 	*\/sys/kernel/debug/tracing/trace_options* (see also the
  * 	*README* file under the same directory). However, it usually
  * 	defaults to something like:
  *
@@ -385,19 +203,7 @@ static __u32 (*bpf_get_prandom_u32)(void) = (void *) 7;
  * Returns
  * 	The SMP id of the processor running the program.
  */
-
-#ifdef USES_BPF_GET_SMP_PROC_ID
-__u32 proc_id;
-static __attribute__ ((noinline)) void stub_init_proc_id(__u32 p) {
-  proc_id = p;
-}
-
-static __attribute__ ((noinline)) __u32 bpf_get_smp_processor_id(void){
-  return proc_id;
-}
-#else
 static __u32 (*bpf_get_smp_processor_id)(void) = (void *) 8;
-#endif
 
 /*
  * bpf_skb_store_bytes
@@ -518,18 +324,7 @@ static long (*bpf_l4_csum_replace)(struct __sk_buff *skb, __u32 offset, __u64 fr
  * Returns
  * 	0 on success, or a negative error in case of failure.
  */
-#ifdef USES_BPF_TAIL_CALL
-// On success the program ends so just model failure.
-static __attribute__ ((noinline)) long  bpf_tail_call(void *ctx, void *prog_array_map, __u32 index) {
-  // TODO: Is there a certain set of meaningful error codes that we should be returning?
-  long ret = klee_int("tail call return");
-  klee_assume(ret < 0);
-  return ret;
-}
-#else
 static long (*bpf_tail_call)(void *ctx, void *prog_array_map, __u32 index) = (void *) 12;
-#endif
-
 
 /*
  * bpf_clone_redirect
@@ -570,19 +365,8 @@ static long (*bpf_clone_redirect)(struct __sk_buff *skb, __u32 ifindex, __u64 fl
  * 	*current_task*\ **->tgid << 32 \|**
  * 	*current_task*\ **->pid**.
  */
-#ifdef USES_BPF_GET_CURRENT_PID_TGID
-__u64 pid_tgid;
-static __attribute__ ((noinline)) void stub_init_pid_tgid(__u64 pt) {
-  pid_tgid = pt;
-}
-
-static __attribute__ ((noinline)) __u64 bpf_get_current_pid_tgid(void) {
-  return pid_tgid;
-}
-#define INIT_PID_TGID(y) stub_init_pid_tgid(y)
-#else
 static __u64 (*bpf_get_current_pid_tgid)(void) = (void *) 14;
-#endif
+
 /*
  * bpf_get_current_uid_gid
  *
@@ -1007,23 +791,8 @@ static long (*bpf_get_stackid)(void *ctx, void *map, __u64 flags) = (void *) 27;
  * 	The checksum result, or a negative error code in case of
  * 	failure.
  */
-
-#ifdef USES_BPF_CSUM_DIFF
-
-static __attribute__ ((noinline)) __s64 bpf_csum_diff(__be32 *from, __u32 from_size, __be32 *to,
-                           __u32 to_size, __wsum seed) {
-  // if(record_calls){
-  //   klee_trace_ret();
-  //   klee_add_bpf_call();
-  // }
-  __s64 csum;
-  klee_make_symbolic(&csum, sizeof(__s64), "Updated Checksum");
-  return csum;
-}
-#else
 static __s64 (*bpf_csum_diff)(__be32 *from, __u32 from_size, __be32 *to, __u32 to_size, __wsum seed) = (void *) 28;
 
-#endif
 /*
  * bpf_skb_get_tunnel_opt
  *
@@ -1165,25 +934,7 @@ static __u32 (*bpf_get_hash_recalc)(struct __sk_buff *skb) = (void *) 34;
  * Returns
  * 	A pointer to the current task struct.
  */
-#ifdef USES_BPF_GET_CURRENT_TASK
-// We make the harness define the task struct, they know best what they need to read
-// and how to make it symbolic. I don't know that a general symbolic task is feasible.
-
-// Right now this is treated the same as the btf task struct, although it should not
-// be accessed directly in the same way.
-struct task_struct *task;
-
-static __attribute__ ((noinline)) void stub_init_current_task(struct task_struct* t) {
-  task = t;
-}
-
-static __attribute__ ((noinline)) struct task_struct *bpf_get_current_task() {
-  return task;
-}
-#define INIT_CURRENT_TASK(y) stub_init_current_task(y)
-#else
 static __u64 (*bpf_get_current_task)(void) = (void *) 35;
-#endif
 
 /*
  * bpf_probe_write_user
@@ -1380,21 +1131,7 @@ static long (*bpf_skb_change_head)(struct __sk_buff *skb, __u32 len, __u64 flags
  * Returns
  * 	0 on success, or a negative error in case of failure.
  */
-
-#ifdef USES_BPF_XDP_ADJUST_HEAD
-static __attribute__ ((noinline)) int bpf_xdp_adjust_head(struct xdp_md *xdp_md, int delta) {
-  /* Simple stub for now that only moves data pointer without a check. We assume
-   * programs don't use the metadata for now */
-  // if(record_calls){
-  //   klee_trace_ret();
-  //   klee_add_bpf_call();
-  // }
-  xdp_md->data += delta;
-  return 0;
-}
-#else
 static long (*bpf_xdp_adjust_head)(struct xdp_md *xdp_md, int delta) = (void *) 44;
-#endif
 
 /*
  * bpf_probe_read_str
@@ -1428,19 +1165,7 @@ static long (*bpf_probe_read_str)(void *dst, __u32 size, const void *unsafe_ptr)
  * 	A 8-byte long unique number on success, or 0 if the socket
  * 	field is missing inside *skb*.
  */
-#ifdef USES_BPF_GET_SOCKET_COOKIE
-__u64 socket_cookie;
-static __attribute__ ((noinline)) void stub_init_socket_cookie(__u64 sc) {
-  socket_cookie = sc;
-}
-
-static __attribute__ ((noinline)) __u64 bpf_get_socket_cookie(void *ctx) {
-  return socket_cookie;
-}
-#define INIT_SOCKET_COOKIE(y) stub_init_socket_cookie(y)
-#else
 static __u64 (*bpf_get_socket_cookie)(void *ctx) = (void *) 46;
-#endif
 
 /*
  * bpf_get_socket_uid
@@ -1552,11 +1277,6 @@ static long (*bpf_setsockopt)(void *bpf_socket, int level, int optname, void *op
  * 	  Use with BPF_F_ADJ_ROOM_ENCAP_L2 flag to further specify the
  * 	  L2 type as Ethernet.
  *
- * 	* **BPF_F_ADJ_ROOM_DECAP_L3_IPV4**,
- * 	  **BPF_F_ADJ_ROOM_DECAP_L3_IPV6**:
- * 	  Indicate the new IP header version after decapsulating the outer
- * 	  IP header. Used when the inner and outer IP versions are different.
- *
  * 	A call to this helper is susceptible to change the underlying
  * 	packet buffer. Therefore, at load time, all checks on pointers
  * 	previously done by the verifier are invalidated and must be
@@ -1595,39 +1315,7 @@ static long (*bpf_skb_adjust_room)(struct __sk_buff *skb, __s32 len_diff, __u32 
  * 	**XDP_REDIRECT** on success, or the value of the two lower bits
  * 	of the *flags* argument on error.
  */
-
-
-#ifdef USES_BPF_REDIRECT_MAP
-static __attribute__ ((noinline)) long bpf_redirect_map (void *map, __u32 key, __u64 flags){
-  // if(record_calls){
-  //   klee_trace_ret();
-  //   klee_add_bpf_call();
-  // }
-
-  /* Copy-pasted code from bpf_map_lookup_elem here to avoid nesting calls that must be traced 
-     Original code
-      if(bpf_map_lookup_elem(map, &key))
-        return 1;
-      return 0;
-  */
-  struct bpf_map_def *map_ptr = ((struct bpf_map_def *)map);
-  void* redirected_elem;
-  if (bpf_map_stub_types[map_ptr->map_id] == ArrayStub)
-    redirected_elem = array_lookup_elem(bpf_map_stubs[map_ptr->map_id], &key);
-  else if (bpf_map_stub_types[map_ptr->map_id] == MapStub)
-    redirected_elem = map_lookup_elem(bpf_map_stubs[map_ptr->map_id], &key);
-  else if (bpf_map_stub_types[map_ptr->map_id] == MapofMapStub)
-    redirected_elem = map_of_map_lookup_elem(bpf_map_stubs[map_ptr->map_id], &key);
-  else
-    assert(0 && "Unsupported map type");
-  if(redirected_elem)
-      return XDP_REDIRECT;
-  return flags & 3;
-}
-
-#else
 static long (*bpf_redirect_map)(void *map, __u64 key, __u64 flags) = (void *) 51;
-#endif
 
 /*
  * bpf_sk_redirect_map
@@ -1757,7 +1445,7 @@ static long (*bpf_perf_event_read_value)(void *map, __u64 flags, struct bpf_perf
 /*
  * bpf_perf_prog_read_value
  *
- * 	For an eBPF program attached to a perf event, retrieve the
+ * 	For en eBPF program attached to a perf event, retrieve the
  * 	value of the event counter associated to *ctx* and store it in
  * 	the structure pointed by *buf* and of size *buf_size*. Enabled
  * 	and running times are also stored in the structure (see
@@ -2142,11 +1830,6 @@ static long (*bpf_skb_load_bytes_relative)(const void *skb, __u32 offset, void *
  * 	**BPF_FIB_LOOKUP_OUTPUT**
  * 		Perform lookup from an egress perspective (default is
  * 		ingress).
- * 	**BPF_FIB_LOOKUP_SKIP_NEIGH**
- * 		Skip the neighbour table lookup. *params*->dmac
- * 		and *params*->smac will not be set as output. A common
- * 		use case is to call **bpf_redirect_neigh**\ () after
- * 		doing **bpf_fib_lookup**\ ().
  *
  * 	*ctx* is either **struct xdp_md** for XDP programs or
  * 	**struct sk_buff** tc cls_act programs.
@@ -3089,19 +2772,7 @@ static long (*bpf_skb_output)(void *ctx, void *map, __u64 flags, void *data, __u
  * Returns
  * 	0 on success, or a negative error in case of failure.
  */
-#ifdef USES_BPF_PROBE_READ_USER
-static __attribute__ ((noinline)) long bpf_probe_read_user(void *dst, __u32 size, const void *unsafe_ptr) {
-  int i;
-	char* d = dst;
-	const char* s = unsafe_ptr;
-	for (i = 0; i < size; i++) {
-		d[i] = s[i];
-	}
-  return 0;
-}
-#else
 static long (*bpf_probe_read_user)(void *dst, __u32 size, const void *unsafe_ptr) = (void *) 112;
-#endif
 
 /*
  * bpf_probe_read_kernel
@@ -3112,19 +2783,7 @@ static long (*bpf_probe_read_user)(void *dst, __u32 size, const void *unsafe_ptr
  * Returns
  * 	0 on success, or a negative error in case of failure.
  */
-#ifdef USES_BPF_PROBE_READ_KERNEL
-static __attribute__ ((noinline)) long bpf_probe_read_kernel(void *dst, __u32 size, const void *unsafe_ptr) {
-  int i;
-	char* d = dst;
-	const char* s = unsafe_ptr;
-	for (i = 0; i < size; i++) {
-		d[i] = s[i];
-	}
-  return 0;
-}
-#else
 static long (*bpf_probe_read_kernel)(void *dst, __u32 size, const void *unsafe_ptr) = (void *) 113;
-#endif
 
 /*
  * bpf_probe_read_user_str
@@ -3172,21 +2831,7 @@ static long (*bpf_probe_read_kernel)(void *dst, __u32 size, const void *unsafe_p
  * 	including the trailing NUL character. On error, a negative
  * 	value.
  */
-#ifdef USES_BPF_PROBE_READ_USER_STR
-static __attribute__ ((noinline)) long bpf_probe_read_user_str(void *dst, __u32 size, const void *unsafe_ptr) {
-  size_t len = strnlen(unsafe_ptr, size);
-  if (len == size) {
-    ((char*)dst)[size - 1] == '\0';
-    strncpy(dst, unsafe_ptr, size - 1);
-  } else {
-    strncpy(dst, unsafe_ptr, len + 1);
-  }
-  if (len == size) return len;
-  return len + 1;
-}
-#else
 static long (*bpf_probe_read_user_str)(void *dst, __u32 size, const void *unsafe_ptr) = (void *) 114;
-#endif
 
 /*
  * bpf_probe_read_kernel_str
@@ -3198,21 +2843,7 @@ static long (*bpf_probe_read_user_str)(void *dst, __u32 size, const void *unsafe
  * 	On success, the strictly positive length of the string, including
  * 	the trailing NUL character. On error, a negative value.
  */
-#ifdef USES_BPF_PROBE_READ_KERNEL_STR
-static __attribute__ ((noinline)) long bpf_probe_read_kernel_str(void *dst, __u32 size, const void *unsafe_ptr) {
-  size_t len = strnlen(unsafe_ptr, size);
-  if (len == size) {
-    ((char*)dst)[size - 1] == '\0';
-    strncpy(dst, unsafe_ptr, size - 1);
-  } else {
-    strncpy(dst, unsafe_ptr, len + 1);
-  }
-  if (len == size) return len;
-  return len + 1;
-}
-#else
 static long (*bpf_probe_read_kernel_str)(void *dst, __u32 size, const void *unsafe_ptr) = (void *) 115;
-#endif
 
 /*
  * bpf_tcp_send_ack
@@ -3404,29 +3035,7 @@ static long (*bpf_sk_assign)(void *ctx, void *sk, __u64 flags) = (void *) 124;
  * Returns
  * 	Current *ktime*.
  */
-#ifdef USES_BPF_KTIME_GET_BOOT_NS
-unsigned long long last_boot_time = 0;
-
-static __attribute__ ((noinline)) void bpf_boot_time_init_stub(void) {
-  klee_make_symbolic(&last_boot_time, sizeof(last_boot_time), "current_time");
-}
-
-static __attribute__ ((noinline)) unsigned long long bpf_ktime_get_boot_ns(void) {
-  unsigned long long time;
-  klee_make_symbolic(&time, sizeof(time), "current_time");
-#ifdef USES_BPF_KTIME_GET_NS
-  // bpf_ktime_get_boot_ns should always be >= to bpf_ktime_get_ns
-  // since boot includes suspended time
-  klee_assume(last_time <= time);
-#endif
-  klee_assume(last_boot_time <= time);
-  last_boot_time = time;
-  return time;
-}
-#define BPF_BOOT_TIME_INIT() bpf_boot_time_init_stub()
-#else
 static __u64 (*bpf_ktime_get_boot_ns)(void) = (void *) 125;
-#endif
 
 /*
  * bpf_seq_printf
@@ -3534,16 +3143,7 @@ static __u64 (*bpf_sk_ancestor_cgroup_id)(void *sk, int ancestor_level) = (void 
  * Returns
  * 	0 on success, or a negative error in case of failure.
  */
-#ifdef USES_BPF_RINGBUF_OUTPUT
-static long bpf_ringbuf_output(void *ringbuf, void *data, __u64 size, __u64 flags) {
-  long result;
-  klee_make_symbolic(&result, sizeof(long), "ringbuf_output_result");
-  klee_assume(result <= 0);
-  return result;
-}
-#else
 static long (*bpf_ringbuf_output)(void *ringbuf, void *data, __u64 size, __u64 flags) = (void *) 130;
-#endif
 
 /*
  * bpf_ringbuf_reserve
@@ -3555,17 +3155,7 @@ static long (*bpf_ringbuf_output)(void *ringbuf, void *data, __u64 size, __u64 f
  * 	Valid pointer with *size* bytes of memory available; NULL,
  * 	otherwise.
  */
-#ifdef USES_BPF_RINGBUF_RESERVE
-static void* bpf_ringbuf_reserve(void *ringbuf, __u64 size, __u64 flags) {
-  assert(flags == 0);
-  if (!klee_int("ringbuf_reserves_success")) {
-    return NULL;
-  }
-  return malloc(size);
-}
-#else
 static void *(*bpf_ringbuf_reserve)(void *ringbuf, __u64 size, __u64 flags) = (void *) 131;
-#endif
 
 /*
  * bpf_ringbuf_submit
@@ -3583,11 +3173,7 @@ static void *(*bpf_ringbuf_reserve)(void *ringbuf, __u64 size, __u64 flags) = (v
  * Returns
  * 	Nothing. Always succeeds.
  */
-#ifdef USES_BPF_RINGBUF_SUBMIT
-static void bpf_ringbuf_submit(void *ringbuf, __u64 flags) {}
-#else
 static void (*bpf_ringbuf_submit)(void *data, __u64 flags) = (void *) 132;
-#endif
 
 /*
  * bpf_ringbuf_discard
@@ -3605,11 +3191,7 @@ static void (*bpf_ringbuf_submit)(void *data, __u64 flags) = (void *) 132;
  * Returns
  * 	Nothing. Always succeeds.
  */
-#ifdef USES_BPF_RINGBUF_DISCARD
-static void bpf_ringbuf_discard(void *ringbuf, __u64 flags) {}
-#else
 static void (*bpf_ringbuf_discard)(void *data, __u64 flags) = (void *) 133;
-#endif
 
 /*
  * bpf_ringbuf_query
@@ -3630,18 +3212,7 @@ static void (*bpf_ringbuf_discard)(void *data, __u64 flags) = (void *) 133;
  * Returns
  * 	Requested value, or 0, if *flags* are not recognized.
  */
-#ifdef USES_BPF_RINGBUF_QUERY
-static __u64 bpf_ringbuf_query(void *ringbuf, __u64 flags) {
-  if (flags == BPF_RB_AVAIL_DATA || flags == BPF_RB_RING_SIZE || flags == BPF_RB_CONS_POS || flags == BPF_RB_PROD_POS) {
-    __u64 result;
-    klee_make_symbolic(&result, sizeof(__u64), "ringbuf_query_result");
-    return result;
-  }
-  return 0;
-}
-#else
 static __u64 (*bpf_ringbuf_query)(void *ringbuf, __u64 flags) = (void *) 134;
-#endif
 
 /*
  * bpf_csum_level
@@ -4167,15 +3738,7 @@ static long (*bpf_task_storage_delete)(void *map, struct task_struct *task) = (v
  * Returns
  * 	Pointer to the current task.
  */
-#ifdef USES_BPF_GET_CURRENT_TASK_BTF
-// We make the harness define the task struct, they know best what they need to read
-// and how to make it symbolic. I don't know that a general symbolic task is feasible.
-static __attribute__ ((noinline)) struct task_struct *bpf_get_current_task_btf() {
-  return task;
-}
-#else
 static struct task_struct *(*bpf_get_current_task_btf)(void) = (void *) 158;
-#endif
 
 /*
  * bpf_bprm_opts_set
@@ -4454,12 +4017,6 @@ static long (*bpf_timer_set_callback)(struct bpf_timer *timer, void *callback_fn
  * 	programs. The same callback_fn can serve different timers from
  * 	different maps if key/value layout matches across maps.
  * 	Every bpf_timer_set_callback() can have different callback_fn.
- *
- * 	*flags* can be one of:
- *
- * 	**BPF_F_TIMER_ABS**
- * 		Start the timer in absolute expire value instead of the
- * 		default relative one.
  *
  *
  * Returns
@@ -4941,23 +4498,12 @@ static long (*bpf_dynptr_read)(void *dst, __u32 len, const struct bpf_dynptr *sr
  *
  * 	Write *len* bytes from *src* into *dst*, starting from *offset*
  * 	into *dst*.
- *
- * 	*flags* must be 0 except for skb-type dynptrs.
- *
- * 	For skb-type dynptrs:
- * 	    *  All data slices of the dynptr are automatically
- * 	       invalidated after **bpf_dynptr_write**\ (). This is
- * 	       because writing may pull the skb and change the
- * 	       underlying packet buffer.
- *
- * 	    *  For *flags*, please see the flags accepted by
- * 	       **bpf_skb_store_bytes**\ ().
+ * 	*flags* is currently unused.
  *
  * Returns
  * 	0 on success, -E2BIG if *offset* + *len* exceeds the length
  * 	of *dst*'s data, -EINVAL if *dst* is an invalid dynptr or if *dst*
- * 	is a read-only dynptr or if *flags* is not correct. For skb-type dynptrs,
- * 	other errors correspond to errors returned by **bpf_skb_store_bytes**\ ().
+ * 	is a read-only dynptr or if *flags* is not 0.
  */
 static long (*bpf_dynptr_write)(const struct bpf_dynptr *dst, __u32 offset, void *src, __u32 len, __u64 flags) = (void *) 202;
 
@@ -4968,9 +4514,6 @@ static long (*bpf_dynptr_write)(const struct bpf_dynptr *dst, __u32 offset, void
  *
  * 	*len* must be a statically known value. The returned data slice
  * 	is invalidated whenever the dynptr is invalidated.
- *
- * 	skb and xdp type dynptrs may not use bpf_dynptr_data. They should
- * 	instead use bpf_dynptr_slice and bpf_dynptr_slice_rdwr.
  *
  * Returns
  * 	Pointer to the underlying dynptr data, NULL if the dynptr is

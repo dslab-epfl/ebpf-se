@@ -175,6 +175,25 @@ long map_update_elem(struct MapStub *map, const void *key, const void *value,
   return 0;
 }
 
+long map_delete_elem(struct MapStub *map, const void *key) {
+  for (int n = 0; n < map->keys_seen; ++n) {
+    void *key_ptr = map->keys_present + n * map->key_size;
+    if (memcmp(key_ptr, key, map->key_size)) {
+      klee_assert(!map->key_deleted[n] &&
+                  "Trying to delete already deleted key");
+      map->key_deleted[n] = 1;
+      return 0;
+    }
+  }
+  // TODO: figure out behavior when deleting nonexistent key
+  klee_assert(map->keys_seen < NUM_ELEMS && "No space left in the map stub");
+  void *key_ptr = map->keys_present + map->keys_seen * map->key_size;
+  memcpy(key_ptr, key, map->key_size);
+  map->key_deleted[map->keys_seen] = 1;
+  map->keys_seen++;
+  return 0;
+}
+
 /* Array of maps Stub */
 
 struct MapofMapStub {

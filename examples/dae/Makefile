@@ -2,5 +2,8 @@
 
 include ../Makefile
 
-XDP_TARGETS := xdp_pass
-XDP_FUNCTION := xdp_prog_simple
+XDP_TARGETS := tproxy
+
+target: BPF_CFLAGS += -D$(PROG)
+
+target: xdp-target
