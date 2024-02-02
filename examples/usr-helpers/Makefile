@@ -2,7 +2,7 @@
 
 USER_TARGETS := xdp_loader lb_cfg
 
-LIBBPF_DIR = ../libbpf/src
+LIBBPF_DIR = ../../libbpf/src
 COMMON_DIR = ../common
 
 # Extend with another COMMON_OBJS

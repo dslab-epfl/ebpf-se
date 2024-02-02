@@ -10,7 +10,7 @@ Subdirectories have their own README files.
 
 * `examples` - contains a set of example eBPF programs that eBPF-SE has been used to symbolically execute so far.
 * `tool` - contains the symbolic execution engine which is based on [KLEE](https://github.com/klee/klee)
-
+* `libbpf-stubbed` - Simple models (stubs) for the Linux kernel's [libbpf](https://github.com/libbpf/libbpf) API that are amenable to symbolic execution. Linking against these models (as opposed to the real implementation of these API functions in the Linux kernel) ensures that eBPF-SE can explore all program paths through the loaded eBPF program without running into path explosion. Current directory is up-to-date with libbpf 1.2.2. 
 
 # Getting Started
 

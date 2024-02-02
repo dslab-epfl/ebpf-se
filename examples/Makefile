@@ -1,5 +1,5 @@
 ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-LIBBPF_DIR:=$(ROOT_DIR)/../libbpf-stubbed/src
+LIBBPF_DIR:=$(ROOT_DIR)/../../libbpf-stubbed/src
 COMMON_DIR:=$(ROOT_DIR)/../common
 PIX_DIR:= $(ROOT_DIR)/../..
 

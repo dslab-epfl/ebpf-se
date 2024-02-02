@@ -13,7 +13,6 @@
 
 **Other:**
 * `headers, common, usr-helpers` - helper code used by XDP programs. Taken from the [XDP project](https://github.com/xdp-project/xdp-tutorial)
-* `libbpf-stubbed` - symbolic models for the Linux kernel's [libbpf](https://github.com/libbpf/libbpf) API. Current directory is up-to-date with libbpf 1.2.2.
 
 # Analyzing an example
 
