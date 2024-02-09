@@ -110,7 +110,7 @@ void *map_allocate(char* name, char* key_type, char* val_type, unsigned int key_
 void *map_lookup_elem(struct MapStub *map, const void *key) {
   for (int n = 0; n < map->keys_seen; ++n) {
     void *key_ptr = map->keys_present + n * map->key_size;
-    if (memcmp(key_ptr, key, map->key_size)) {
+    if (!memcmp(key_ptr, key, map->key_size)) {
       if (map->key_deleted[n])
         return NULL;
       else {
@@ -152,7 +152,7 @@ long map_update_elem(struct MapStub *map, const void *key, const void *value,
   if (flags > 0) {
     for (int n = 0; n < map->keys_seen; ++n) {
       void *key_ptr = map->keys_present + n * map->key_size;
-      if (memcmp(key_ptr, key, map->key_size)) {
+      if (!memcmp(key_ptr, key, map->key_size)) {
         klee_assert(map->key_deleted[n] &&
                     "Trying to insert already present key");
         map->key_deleted[n] = 0;
@@ -178,7 +178,7 @@ long map_update_elem(struct MapStub *map, const void *key, const void *value,
 long map_delete_elem(struct MapStub *map, const void *key) {
   for (int n = 0; n < map->keys_seen; ++n) {
     void *key_ptr = map->keys_present + n * map->key_size;
-    if (memcmp(key_ptr, key, map->key_size)) {
+    if (!memcmp(key_ptr, key, map->key_size)) {
       klee_assert(!map->key_deleted[n] &&
                   "Trying to delete already deleted key");
       map->key_deleted[n] = 1;

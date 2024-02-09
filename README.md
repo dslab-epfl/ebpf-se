@@ -33,7 +33,7 @@ make symbex
 ```
 
 You should automatically see the KLEE output at the end of third step, which describes the total number of paths explored during symbolic execution.
-The analysis for Katran, which is one of the more complex eBPF programs, takes approximately 2 minutes and yields 10678 paths.
+The analysis for Katran, which is one of the more complex eBPF programs, takes approximately 2 minutes and yields 16110 paths.
 
 
 # Using eBPF-SE to analyze your own eBPF programs
