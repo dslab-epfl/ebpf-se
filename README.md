@@ -21,7 +21,7 @@ cd tool
 source paths.sh
 ```
 
-This step should take approximately 10 minutes and will install the symbolic execution along with all of its dependencies ([KLEE](https://github.com/klee/klee), [klee-uclibc](https://github.com/klee/klee-uclibc) and [Z3](https://github.com/Z3Prover/z3)).
+This step should take approximately 10 minutes and will install the symbolic execution engine along with all of its dependencies ([KLEE](https://github.com/klee/klee), [klee-uclibc](https://github.com/klee/klee-uclibc) and [Z3](https://github.com/Z3Prover/z3)).
 This also creates a `paths.sh` file which contains commands to add `klee` and its include directory to your path. We recommend adding `source ebpf-se/tool/paths.sh` to your `.bashrc` for ease of use. 
 
 Then, to test the tool on any of the provided examples (for instance, Katran):
